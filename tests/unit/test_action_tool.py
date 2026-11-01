@@ -69,3 +69,4 @@ def test_send_notification_execution(db):
 
     db.query(ActionRecord).filter(ActionRecord.workflow_id == wid).delete()
     db.commit()
+
