@@ -1,5 +1,6 @@
 """Worker batch job: recompute revenue and re-run anomaly detection."""
-import sys, pathlib, datetime as dt
+import sys
+import pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from app.core.logging_config import setup_logging
 from app.db.base import SessionLocal, init_db

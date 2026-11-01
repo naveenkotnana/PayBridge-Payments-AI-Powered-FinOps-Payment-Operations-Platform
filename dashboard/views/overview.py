@@ -9,7 +9,6 @@ from dashboard.components import (
     format_inr,
     render_insight_bar,
     render_kpi_row,
-    render_severity_badge,
     render_top_header
 )
 
@@ -25,15 +24,15 @@ def render_overview(role: str):
     # 1. Compact Filter Bar (Properly Proportioned)
     f_col1, f_col2, f_col3, f_col4 = st.columns([3.5, 1.8, 1.8, 1.2])
     with f_col1:
-        date_sel = st.selectbox("Date Range", [
+        st.selectbox("Date Range", [
             "Apr 01, 2026 → Sep 30, 2026 (H1 FY26 Full Window)",
             "Sep 01, 2026 → Sep 30, 2026 (Latest Month)",
             "Jun 01, 2026 → Aug 31, 2026 (Trailing Q2)"
         ], index=0, label_visibility="collapsed")
     with f_col2:
-        group_by = st.selectbox("Group by", ["Month", "Week", "Day"], index=0, label_visibility="collapsed")
+        st.selectbox("Group by", ["Month", "Week", "Day"], index=0, label_visibility="collapsed")
     with f_col3:
-        view_type = st.selectbox("View", ["Revenue", "Usage", "Devices", "Exceptions"], index=0, label_visibility="collapsed")
+        st.selectbox("View", ["Revenue", "Usage", "Devices", "Exceptions"], index=0, label_visibility="collapsed")
     with f_col4:
         st.button("Apply", type="primary", use_container_width=True)
 
@@ -199,7 +198,7 @@ def render_overview(role: str):
             df_loc = pd.DataFrame(loc_data["rows"])
             latest_month = df_loc["billing_month"].max()
             df_loc_latest = df_loc[df_loc["billing_month"] == latest_month].sort_values("revenue", ascending=False)
-            
+
             bldg_chart = alt.Chart(df_loc_latest).mark_bar(color="#2F5BFF", cornerRadiusEnd=4).encode(
                 x=alt.X("revenue:Q", title="Revenue (₹)", axis=alt.Axis(format="~s")),
                 y=alt.Y("location_code:N", title="Location", sort="-x"),
@@ -225,7 +224,7 @@ def render_overview(role: str):
             df_plan = pd.DataFrame(plan_data["rows"])
             latest_m = df_plan["billing_month"].max()
             df_plan_latest = df_plan[df_plan["billing_month"] == latest_m]
-            
+
             plan_chart = alt.Chart(df_plan_latest).mark_bar(cornerRadiusEnd=4).encode(
                 x=alt.X("revenue:Q", title="Revenue (₹)", axis=alt.Axis(format="~s")),
                 y=alt.Y("plan_id:N", title="Plan ID", sort="-x"),
@@ -257,7 +256,7 @@ def render_overview(role: str):
 
     # 7. Operational Insights (4 Fintech Cards)
     st.markdown("<h3 style='font-size:1.1rem; font-weight:700; color:#0F172A; margin: 1.5rem 0 0.8rem 0;'>Operational Insights</h3>", unsafe_allow_html=True)
-    
+
     # Calculate top building metrics dynamically
     highest_bldg = "HYD-NORTH"
     highest_bldg_rev = 0.0

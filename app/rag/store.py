@@ -10,8 +10,8 @@ one-file change.
 EMBEDDING_MODE=ollama switches to local nomic-embed-text embeddings through
 Ollama, still with no external API.
 """
-import json, re
-from dataclasses import dataclass, asdict
+import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 

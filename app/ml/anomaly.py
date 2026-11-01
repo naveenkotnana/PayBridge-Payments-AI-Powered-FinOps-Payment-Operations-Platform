@@ -134,7 +134,7 @@ def detect(db: Session, contamination=0.08, seed=42) -> dict:
 
     db.commit()
     n_alerts = db.execute(text("SELECT COUNT(*) FROM alerts")).scalar()
-    return {"rows_scored": len(df), "anomalies": len(found), "alerts": int(n_alerts)}
+    return {"rows_scored": len(df), "anomalies": len(found), "alerts": int(n_alerts or 0)}
 
 
 _RANK = {"INFO": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}

@@ -1,7 +1,9 @@
 """Local JWT auth + RBAC. No external identity provider, no hardcoded secrets
 in code (JWT_SECRET comes from env; the dev default is clearly labelled)."""
 import datetime as dt
-import hashlib, hmac, os
+import hashlib
+import hmac
+import os
 from typing import Optional
 
 import jwt
@@ -71,7 +73,7 @@ def require(*permissions: str):
     """Server-side permission enforcement. The dashboard's UI restrictions are
     cosmetic; this is the control."""
     def dep(user: User = Depends(get_current_user)) -> User:
-        granted = ROLE_PERMISSIONS.get(user.role, set())
+        granted = ROLE_PERMISSIONS.get(str(user.role), set())
         missing = set(permissions) - granted
         if missing:
             raise HTTPException(status.HTTP_403_FORBIDDEN,

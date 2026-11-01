@@ -4,8 +4,9 @@ Idempotency: every action carries a deterministic key
 (workflow_id + action_type). A repeat is recorded as DUPLICATE_SKIPPED, so a
 retried workflow cannot raise two incidents.
 """
-import hashlib, json, uuid
-from sqlalchemy import text
+import hashlib
+import json
+import uuid
 from sqlalchemy.orm import Session
 from app.models import ActionRecord
 

@@ -3,7 +3,6 @@
 
 Synthetic portfolio project. Local Ollama LLM. Zero paid external APIs.
 """
-import os
 import sys
 from pathlib import Path
 

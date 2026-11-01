@@ -1,6 +1,5 @@
 """Revenue engine edge cases. These are the rules money depends on."""
 import datetime as dt
-import pytest
 from app.services.revenue import active_days, month_bounds, _money, _as_date
 
 

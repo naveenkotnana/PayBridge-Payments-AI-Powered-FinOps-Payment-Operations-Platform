@@ -1,9 +1,11 @@
 """OpsPilot REST API. Synthetic data only. Local Ollama only. No paid APIs."""
-import json, time
+from contextlib import asynccontextmanager
 import datetime as dt
+import json
+from pathlib import Path
+import time
 from typing import List, Optional
 
-from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response
@@ -11,12 +13,9 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
-
 from app.agent.tools.action_tool import create_incident
 from app.agent.workflow import resume_after_approval, run_investigation
 from app.analytics.queries import QUERIES
-from app.core.config import settings
 from app.core.logging_config import setup_logging
 from app.core.security import (create_access_token, get_current_user, require,
                                seed_demo_users, verify_password)
@@ -28,9 +27,8 @@ from app.rag.store import get_store
 from app.schemas.api import (AlertOut, ApprovalDecision, HealthOut,
                              IncidentCreate, InvestigateResponse, LoginRequest, Token)
 
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 setup_logging()
-
-from contextlib import asynccontextmanager
 
 
 @asynccontextmanager

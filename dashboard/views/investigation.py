@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 """AI Investigation View — Deterministic LangGraph Agent Root Cause Investigation."""
-import json
-import pandas as pd
 import streamlit as st
 
-from dashboard.components import api_call, format_inr, render_top_header
+from dashboard.components import api_call, render_top_header
 
 
 def render_investigation(role: str):

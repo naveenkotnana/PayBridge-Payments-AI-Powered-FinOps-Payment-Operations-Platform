@@ -8,7 +8,8 @@ filtering, which is why there is no "sanitise the LLM's SQL" code path here.
 A raw-SQL escape hatch exists for the API layer only and is still validated:
 SELECT-only, single statement, allowlisted tables, forced row limit.
 """
-import re, time
+import re
+import time
 from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session

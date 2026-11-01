@@ -1,32 +1,32 @@
-# ⚡ OpsPilot — AI Operations & Financial Intelligence Platform
+# ⚡ OpsPilot — AI FinOps Automation & Revenue Intelligence Platform
 
 <p align="center">
   <img src="assets/operations_overview.png" alt="OpsPilot Executive Operations Overview" width="900" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);" />
 </p>
 
 <p align="center">
-  <strong>A Production-Grade FinOps Automation, Deterministic Revenue Reconciliation, ML Anomaly Engine, and Local LLM Copilot</strong>
+  <strong>Production-Grade FinOps Automation, Deterministic Revenue Reconciliation, ML Anomaly Detection, and Local AI Investigation Copilot</strong>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
-  <img src="https://img.shields.io/badge/Streamlit-1.30+-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit" />
+  <img src="https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.13-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
   <img src="https://img.shields.io/badge/FastAPI-0.110+-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
-  <img src="https://img.shields.io/badge/LangGraph-Agentic_AI-FF6F00?style=for-the-badge" alt="LangGraph" />
+  <img src="https://img.shields.io/badge/Streamlit-1.30+-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit" />
+  <img src="https://img.shields.io/badge/PostgreSQL-16%20%2F%20SQLite-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/LangGraph-Stateful_Workflows-FF6F00?style=for-the-badge" alt="LangGraph" />
   <img src="https://img.shields.io/badge/Local_LLM-Ollama-000000?style=for-the-badge" alt="Ollama" />
-  <img src="https://img.shields.io/badge/Tests-67%20PASS-brightgreen?style=for-the-badge" alt="Tests" />
-  <img src="https://img.shields.io/badge/API_Cost-ZERO%20PAID%20APIs-blue?style=for-the-badge" alt="Zero External APIs" />
+  <img src="https://img.shields.io/badge/Tests-85%20PASS%20%7C%2057%20EVALS-brightgreen?style=for-the-badge" alt="Tests" />
+  <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License" />
 </p>
 
 > [!NOTE]
-> **Synthetic Portfolio Project Notice**: All customer records, telemetry streams, and transaction amounts are synthetically generated. All AI inference is executed **100% locally via Ollama** (`llama3.2:1b`) with zero paid external APIs (no OpenAI, no Anthropic, no Gemini egress).
+> **Synthetic Portfolio & Privacy Notice**: All customer records, telemetry streams, and financial transaction amounts in this repository are synthetically generated. All AI agent inference runs **100% locally via Ollama** (`qwen2.5:3b-instruct` recommended) with zero external, paid, or cloud LLM APIs (no OpenAI, Anthropic, or Gemini egress). When Ollama is offline, the deterministic rule-based fallback seamlessly takes over.
 
 ---
 
 ## 🎬 Live Interactive Video Proof & Walkthrough
 
-Below is a live recorded session of the **OpsPilot** platform demonstrating the glassmorphic authentication gateway, the executive operations command center, deterministic revenue ledgers, and the local AI investigation copilot:
+Below is a live recorded session of the **OpsPilot** platform demonstrating the glassmorphic authentication gateway, executive operations command center, deterministic revenue ledgers, and local AI investigation copilot:
 
 <p align="center">
   <img src="assets/demo_walkthrough.gif" alt="OpsPilot Full Platform Video Walkthrough" width="900" style="border-radius: 14px; border: 1px solid #CBD5E1; box-shadow: 0 12px 36px rgba(15, 23, 42, 0.12);" />
@@ -36,8 +36,8 @@ Below is a live recorded session of the **OpsPilot** platform demonstrating the 
 
 | Timestamp | Platform Feature | Technical Capabilities Demonstrated |
 | :--- | :--- | :--- |
-| **`00:00 - 00:06`** | **Glassmorphism Auth Gateway** | Ethereal pastel sky backdrop, centered frosted card (`backdrop-filter: blur(24px)`), squircle icon. |
-| **`00:06 - 00:14`** | **Multi-Role Clearance Switcher** | Dedicated **Manager (Level 2)**, **Analyst (Level 1)**, and **Admin (Level 3)** portals with cyber infrastructure banner. |
+| **`00:00 - 00:06`** | **Glassmorphism Auth Gateway** | Ethereal pastel backdrop, centered frosted card (`backdrop-filter: blur(24px)`), squircle branding. |
+| **`00:06 - 00:14`** | **Multi-Role Clearance Switcher** | Dedicated **Manager (Level 2)**, **Analyst (Level 1)**, and **Admin (Level 3)** portals with role-based routing. |
 | **`00:14 - 00:30`** | **Operations Overview Command Center** | Real-time **Live Workflow** indicator, **Daily Reconciliation Ribbon** (99.8% match rate), non-breaking KPI cards (`₹10.58 L`). |
 | **`00:30 - 00:42`** | **Revenue & Transactions Ledger** | Multi-dimensional SQL analytical queries, billing records breakdown, and export capabilities. |
 | **`00:42 - 00:52`** | **AI Investigation Copilot** | Local Ollama + RAG + LangGraph 10-node agent conducting root-cause anomaly analysis. |
@@ -45,33 +45,85 @@ Below is a live recorded session of the **OpsPilot** platform demonstrating the 
 
 ---
 
-## 🎯 Problem Statement & Business Context
+## 🎯 1. Problem Statement & Business Context
 
-A high-growth utility and smart-metering subscription business bills hundreds of residential apartment communities monthly across water consumption, hardware rentals, and tiered tariffs. Revenue is assembled from four moving parts:
+In high-growth smart-metering and utility subscription businesses, companies bill hundreds of residential apartment communities monthly across tiered volumetric tariffs, hardware rentals, and dynamic device windows. Monthly revenue is assembled from:
 
 1. **Device Activation Windows**: Dynamic device lifecycle states and meter onboarding dates.
 2. **Plan Assignments**: Multi-tier volumetric tariffs and fixed base fees.
-3. **Metered Consumption**: 90,000+ IoT telemetry readings per quarter with potential packet loss and sensor noise.
+3. **Metered Consumption**: 91,500+ IoT telemetry readings per quarter with potential packet dropouts and sensor noise.
 4. **Proration & Adjustments**: Mid-month lease activations, meter replacements, and tariff revisions.
 
 ### The Operational Challenge
-When monthly revenue shifts unexpectedly, financial operations analysts traditionally spend days manually pulling SQL logs, reading standard operating procedures (SOPs), cross-referencing tariff contracts, and calculating variance by hand. This process is slow, error-prone, and lacks an immutable audit trail.
+When monthly revenue shifts unexpectedly, financial operations analysts traditionally spend days manually pulling SQL logs, reading Standard Operating Procedures (SOPs), cross-referencing tariff contracts, and calculating variance by hand. This process is slow, error-prone, vulnerable to hallucinations if delegated to naive chatbots, and lacks an immutable audit trail.
 
 ---
 
-## 💡 The Solution: OpsPilot Architecture
+## 💡 2. Project Objectives & Core Engineering Principles
 
-OpsPilot automates the entire journey from raw telemetry ingestion to human-approved operational remediations:
+OpsPilot was designed from the ground up to solve this with strict software engineering discipline:
 
-1. **Ingests & Validates**: Runs strict data quality gates on 91,500+ IoT telemetry rows, flagging schema anomalies and missing data before ingestion.
-2. **Computes Deterministic Revenue**: Executes reproducible mathematical billing rules in SQL without relying on generative LLMs for arithmetic.
-3. **Detects Unsupervised Anomalies**: Combines **IsolationForest ML** with deterministic rule heuristics to flag consumption leaks, meter tampering, and silent dropouts.
-4. **Investigates with Agentic AI**: Orchestrates a 10-node **LangGraph state machine** that gathers allowlisted SQL evidence and citations from local policy SOPs.
-5. **Enforces Human-in-the-Loop Governance**: Halts at an explicit approval gate before executing any billing recalculation or meter reset.
-6. **Logs Tamper-Evident Audits**: Seals every operational action into a cryptographic `HMAC-SHA256` hash chain.
+- **Deterministic Revenue Engine**: Math and billing calculations execute strictly in deterministic Python (`Decimal`, `ROUND_HALF_UP`) and SQL window functions. Generative LLMs **never** perform financial arithmetic.
+- **Unsupervised ML Anomaly Detection**: `IsolationForest` proposes multi-dimensional outliers, while deterministic policy rules assign severity tiers (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`).
+- **Sandboxed Agentic Investigation**: A 10-node **LangGraph state machine** inspects allowlisted SQL queries and retrieves relevant policy SOPs with strict prompt-injection defenses.
+- **Human-in-the-Loop Governance**: The agent **stops** at an explicit approval gate before any sensitive operational remediation (`create_incident`, `create_ticket`, `send_notification`) can be recorded. Actions cannot execute without Level 2/Level 3 clearance.
+- **Tamper-Evident Audit Trails**: Every agent node transition, tool execution, input hash, and approval decision is persisted with SHA-256 idempotency.
+- **Zero External API Cost**: 100% of the stack runs on commodity hardware (fits within 8 GB RAM / 4 GB VRAM) with zero cloud vendor lock-in.
 
-> [!IMPORTANT]
-> **Core Architectural Principle**: The LLM is the least deterministic component in the stack, so it is strictly **sandboxed**. The LLM cannot execute raw arbitrary SQL, cannot perform unvalidated arithmetic, and cannot execute billing adjustments without Level 2/Level 3 clearance approval.
+---
+
+## 🏗️ 3. Technical Architecture & Data Flow
+
+```mermaid
+flowchart TD
+    subgraph Data_Layer ["Data Layer & Telemetry Ingestion"]
+        A["Raw Telemetry CSVs<br>(91,501 IoT Rows)"] --> B["Data Quality Gate<br>(Schema, Null, Duplicate, Referential)"]
+        B --> C[("PostgreSQL 16 / SQLite<br>(13 Relational Tables)")]
+    end
+
+    subgraph Analytics_ML ["Analytics & Unsupervised ML"]
+        C --> D["Deterministic Revenue Engine<br>(Proration, Tiered Rates, Half-Up Math)"]
+        D --> E["Feature Matrix Generator<br>(Location-Month Aggregations)"]
+        E --> F["IsolationForest ML Detector<br>(Contamination=0.08)"]
+        F --> G["Rule Severity Thresholds<br>(CRITICAL / HIGH / MEDIUM / LOW)"]
+        G --> H["Operational Alerts Queue"]
+    end
+
+    subgraph Agentic_Copilot ["LangGraph 10-Node Investigation Copilot"]
+        H --> I["Node 1: Intake & Context Binding"]
+        I --> J["Node 2: Planner (Allowlisted Queries)"]
+        J --> K["Node 3: SQL Investigator (Read-Only Guardrails)"]
+        K --> L["Node 4: Retrieval Investigator (Local Policy RAG)"]
+        L --> M["Node 5: Analytics Investigator (Deterministic Delta)"]
+        M --> N["Node 6: Evidence Validator (Grounding & Sufficiency)"]
+        N --> O["Node 7: Recommendation Generator (Local Qwen2.5 / Fallback)"]
+        O --> P{"Node 8: Approval Gate<br>(Requires Human Approval?)"}
+        P -->|Yes| Q["State Saved & Halts<br>(Status: AWAITING_APPROVAL)"]
+        P -->|No| R["Node 9: Action Executor"]
+        Q -->|Human Approves| R
+        R --> S["Node 10: Cryptographic Audit Logger"]
+    end
+
+    subgraph Presentation ["Presentation & Interaction"]
+        C & D & H & S --> T["FastAPI REST Backend (:8000)"]
+        T --> U["Streamlit Operations Command Center (:8501)"]
+    end
+```
+
+---
+
+## 🛠️ 4. Technology Stack & Technical Rationale
+
+| Layer | Technology | Technical Rationale |
+| :--- | :--- | :--- |
+| **Backend API** | **FastAPI + Pydantic v2** | High-performance asynchronous REST gateway, automatic OpenAPI / Swagger documentation, strict schema validation, and dependency-injected security. |
+| **Workflow State Machine** | **LangGraph (LangChain)** | Explicit state graph with deterministic edges and interruption gates. Replaces fragile multi-agent chat loops with a reproducible 10-node DAG. |
+| **Machine Learning** | **scikit-learn (`IsolationForest`)** | Unsupervised multi-dimensional anomaly detection across revenue deltas, exception rates, and consumption trends without requiring pre-labeled training data. |
+| **Knowledge Retrieval (RAG)** | **In-Process TF-IDF Vectorizer** | Zero-latency, zero-overhead lexical search over policy SOPs. Eliminates 500 MB+ vector DB overhead on 8 GB local machines while achieving Recall@4 = 1.000. |
+| **Local LLM Engine** | **Ollama (`qwen2.5:3b-instruct`)** | 3.1B parameter open-weights model fitting within 2 GB VRAM on a GTX 1650. Exceptional JSON format adherence and zero API egress costs. |
+| **Database & Migrations** | **PostgreSQL 16 / SQLite + Alembic** | Dual-mode storage: zero-setup local SQLite file for instant evaluation, or PostgreSQL 16 via Docker for production deployment, managed by Alembic migrations. |
+| **User Interface** | **Streamlit** | Rapid, stateful, glassmorphic analytics interface customized with Razorpay-inspired fintech styling, KPI ribbons, and real-time approval modals. |
+| **Code Quality & CI** | **Ruff, Mypy, Pytest** | Modern linting passing with 0 errors, strict typing across core domain models, and automated CI checking lint, types, tests, RAG, and agent governance. |
 
 ---
 
@@ -89,132 +141,151 @@ OpsPilot automates the entire journey from raw telemetry ingestion to human-appr
 
 ---
 
-## 🏗️ System Architecture
+## ⚡ 5. Quickstart & Local Setup Guide
 
-```mermaid
-flowchart TD
-    subgraph Data Layer
-        A[Raw Telemetry CSVs<br>91.5k Records] --> B[Data Quality Gate<br>Schema & Null Checks]
-        B --> C[(PostgreSQL / SQLite<br>Deterministic Models)]
-    end
+### System Requirements
+- **Python**: 3.11, 3.12, or 3.13
+- **Git**
+- **RAM**: Minimum 4 GB (8 GB recommended)
+- *(Optional)* **Ollama**: For live local LLM inference ([Download Ollama](https://ollama.com/download))
 
-    subgraph Analytics & ML Engine
-        C --> D[Deterministic Billing Engine<br>Tariff & Revenue Aggregation]
-        C --> E[ML Anomaly Engine<br>IsolationForest]
-        E --> F[Alerts & Exceptions Queue]
-    end
-
-    subgraph AI Investigation Copilot
-        G[Natural Language Prompt] --> H[LangGraph State Machine]
-        H --> I[Local RAG Knowledge Base<br>38 Chunks]
-        H --> J[SQL Schema & Query Tool]
-        H --> K[Local Ollama LLM<br>llama3.2:1b]
-        K --> L[Root-Cause Analysis & Action Plan]
-    end
-
-    subgraph Security & Governance
-        M[FastAPI REST Gateway] --> N[JWT Auth & RBAC Check<br>Levels 1, 2, 3]
-        N --> O[Cryptographic Audit Ledger<br>SHA256 Hash Chain]
-    end
-
-    subgraph Razorpay-Inspired UI
-        C & D & F & L --> P[Streamlit Operations Command Center]
-    end
-```
-
----
-
-## ⚡ Quickstart & Local Setup
-
-### Prerequisites
-- Python 3.11+
-- Git
-- *(Optional)* [Ollama](https://ollama.ai/) with `ollama pull llama3.2:1b` (Rule-based fallback engine automatically engages if Ollama is offline).
-
-### 1. Clone & Install Dependencies
+### 1. Clone & Set Up Environment
 ```bash
+# Clone the repository
 git clone https://github.com/naveenkotnana/Deploy-OpsPilot-Razorpay-inspired-AI-FinOps-Platform.git
 cd Deploy-OpsPilot-Razorpay-inspired-AI-FinOps-Platform
+
+# Create and activate virtual environment
+python -m venv .venv
+# On Windows:
+.venv\Scripts\activate
+# On Linux/macOS:
+source .venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2. Bootstrap Synthetic Database
+### 2. Configure Environment Variables
+```bash
+# Copy example configuration
+cp .env.example .env
+```
+*(Default settings use SQLite and local fallback with zero configuration needed).*
+
+### 3. Bootstrap Schema & Ingest Synthetic Telemetry
 ```bash
 python scripts/setup_all.py
 ```
-*Initializes database schema, ingests 91,501 telemetry rows, executes quality gate checks, and calculates quarterly billing.*
+This single idempotent command:
+- Creates all 13 domain tables via SQLAlchemy & verifies Alembic migration head.
+- Ingests and validates 91,501 water usage readings across 500 apartments.
+- Computes monthly deterministic billing across 6 months.
+- Runs `IsolationForest` anomaly detection and populates operational alerts.
+- Seeds demo users (`analyst`, `manager`, `admin`).
+- Builds the in-process RAG index over policy documents.
 
-### 3. Launch OpsPilot Services
+### 4. Run OpsPilot Services
 ```bash
-# Terminal 1: Start FastAPI REST Backend
+# Terminal 1: Launch FastAPI REST Gateway
 uvicorn backend:app --host 127.0.0.1 --port 8000
 
-# Terminal 2: Start Streamlit Dashboard UI
+# Terminal 2: Launch Streamlit Dashboard
 streamlit run frontend.py
 ```
-- Open **Dashboard**: [http://localhost:8501](http://localhost:8501)
-- Open **API Docs (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Operations Dashboard**: [http://localhost:8501](http://localhost:8501)
+- **Interactive REST Swagger**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
 
-## 🔑 Default Authentication Credentials
+## 🔑 6. Default Authentication Credentials (RBAC Matrix)
 
-| Role | Username | Password | Clearance Level | Permissions & Scope |
+| Role | Username | Password | Clearance Level | Granted Permissions |
 | :--- | :--- | :--- | :--- | :--- |
-| **Operations Manager** | `manager` | `manager123` | **Level 2** | Full operations dashboard, exception triage & human approval authority. |
-| **Revenue Analyst** | `analyst` | `analyst123` | **Level 1** | Telemetry monitoring, SQL model execution & AI investigation copilot. |
-| **Platform Administrator**| `admin` | `admin123` | **Level 3** | Superuser governance, cryptographic audit ledger & pipeline controls. |
+| **Operations Manager** | `manager` | `manager123` | **Level 2** | `view`, `investigate`, `approve`, `reject` (Triage exceptions & human approval authority) |
+| **Revenue Analyst** | `analyst` | `analyst123` | **Level 1** | `view`, `investigate` (Telemetry exploration, SQL models & AI investigation copilot) |
+| **Platform Administrator** | `admin` | `admin123` | **Level 3** | `view`, `investigate`, `approve`, `reject`, `admin` (Superuser governance & audit ledger) |
 
 ---
 
-## 🧪 Verification & Automated Testing Suite
+## 🧪 7. Verification, Testing & Evaluation Suites
 
-OpsPilot includes an exhaustive automated test suite covering unit contracts, REST APIs, deterministic billing logic, ML models, RAG recall, and multi-turn agent evaluation:
+OpsPilot enforces strict engineering verification with **142 total automated tests and benchmarks**:
+
+### Running the Test Suites
 
 ```bash
-# Run complete test suite
-pytest tests/unit tests/integration -v
+# 1. Run complete Unit and Integration test suite
+pytest tests/ -v
+
+# 2. Run with test coverage report
+pytest tests/ --cov=app --cov-report=term-missing
+
+# 3. Run RAG Retrieval & Citation Evaluation benchmark
+python scripts/run_rag_eval.py
+
+# 4. Run Agent Workflow, Governance & Prompt Injection Evaluation
+python scripts/run_agent_eval.py
+
+# 5. Run static lint and code quality check
+ruff check app dashboard scripts tests
+
+# 6. Run static type checking
+mypy app/models app/core app/schemas app/services --ignore-missing-imports
 ```
 
-### Test Results
+### Verified Test Results
+
 ```text
-==================================== 67 passed in 107.89s ====================================
-[PASS] tests/unit/test_revenue_calculation.py (Deterministic math & tiered rates)
-[PASS] tests/unit/test_anomaly_detection.py (IsolationForest ML scoring)
-[PASS] tests/unit/test_security_rbac.py (JWT token verification & 403 authorization gates)
-[PASS] tests/unit/test_data_validation.py (Null rate, schema match, referential integrity)
-[PASS] tests/integration/test_pipeline.py (End-to-end telemetry ingestion & monthly runs)
-[PASS] evaluation/rag_eval (22/22 RAG queries passed - 1.000 Accuracy)
-[PASS] evaluation/agent_eval (35/35 LangGraph multi-turn runs passed - 1.000 Score)
+================================== Test Summary ==================================
+tests/unit/test_revenue.py ......................... [10 passed] (Proration, rounding, exceptions)
+tests/unit/test_anomaly.py ......................... [3 passed]  (IsolationForest scoring & thresholds)
+tests/unit/test_validation.py ...................... [7 passed]  (Schema match, null rate, integrity)
+tests/unit/test_security_unit.py .................. [18 passed] (JWT hashing, RBAC gates, permission matrix)
+tests/unit/test_customer_config.py ................. [5 passed]  (Multi-tenant customer configuration)
+tests/unit/test_rag_store.py ....................... [5 passed]  (Clearance filtering & chunk citations)
+tests/unit/test_action_tool.py ..................... [5 passed]  (Idempotency keys & deduplication)
+tests/unit/test_batch_upload.py .................... [3 passed]  (Batch ingestion pipeline)
+tests/integration/test_pipeline.py ................ [11 passed] (End-to-end telemetry ingestion)
+tests/integration/test_api.py ..................... [18 passed] (Full REST endpoints & approval cycles)
+----------------------------------------------------------------------------------
+Pytest Suite Total:                                  85 PASSED (100%) in 48.2s
+
+scripts/run_rag_eval.py ............................ [22 cases] (Recall@4 = 1.000, Fact Cov = 0.947)
+scripts/run_agent_eval.py .......................... [35 cases] (Tool selection, injection, idempotency)
+----------------------------------------------------------------------------------
+Grand Total Verified Checks:                         142 PASSED (0 FAILURES, 0 WARNINGS)
 ```
 
 ---
 
-## 🐳 Docker Deployment
+## 🐳 8. Docker Deployment
 
-To launch the containerized stack using Docker Compose:
+To launch the entire containerized microservices stack (PostgreSQL + FastAPI + Streamlit + Worker):
 
 ```bash
+# Start all containerized services
 docker compose up -d --build
 ```
 - Streamlit Dashboard: `http://localhost:8501`
 - FastAPI REST Backend: `http://localhost:8000`
-- PostgreSQL Database: `localhost:5432`
+- PostgreSQL 16 Database: `localhost:5432`
+
+*(Ollama runs on the host machine to preserve native GPU acceleration without WSL2 virtualization overhead, connected via `host.docker.internal:11434`).*
 
 ---
 
-## ☁️ Streamlit Community Cloud 1-Click Deployment
+## ⚖️ 9. Limitations & Engineering Trade-offs
 
-OpsPilot is engineered with **in-process standalone fallbacks** in `dashboard/components.py`, enabling direct zero-configuration deployment to Streamlit Community Cloud:
-
-1. Fork or push this repository to your GitHub account.
-2. Go to [share.streamlit.io](https://share.streamlit.io) and click **"New app"**.
-3. Select your repository, branch `main`, and set **Main file path**: `frontend.py`.
-4. Click **Deploy!**
+- **Lexical RAG vs Dense Embeddings**: TF-IDF provides zero-latency keyword-exact retrieval for the policy SOP corpus. When user queries depart substantially from standard terminology, setting `EMBEDDING_MODE=ollama` enables dense semantic embeddings (`nomic-embed-text`).
+- **Fixed Investigation Queries**: The investigation planner currently executes 3 predefined analytical SQL queries for revenue alerts. Future iterations could allow dynamic query plan synthesis based on the alert taxonomy.
+- **Location-Grain Alerting**: Anomaly detection aggregates at location-month grain because physical utility disruptions are site-scoped. Individual apartment anomalies are visible via SQL drill-downs (`revenue_outliers`) but do not trigger independent system alerts.
+- **Production Boundary**: In this prototype environment, rate-limiting and refresh token rotation are omitted. Synthetic data is used exclusively.
 
 ---
 
-## 📄 License & Attribution
-Designed & Engineered as a flagship FinOps Portfolio Project by **Naveen Kotnana**.  
-*Inspired by Razorpay's modern Indian fintech analytics aesthetics.*  
-Distributed under the **MIT License**.
+## 📄 10. License & Attribution
+
+Designed and engineered as a production-grade FinOps Portfolio Project by **Naveen Kotnana**.  
+*Inspired by Razorpay's modern Indian fintech design language and operational rigor.*  
+Distributed under the **[MIT License](LICENSE)**.

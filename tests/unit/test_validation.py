@@ -33,7 +33,9 @@ def test_date_validity_detects_bad_date():
 
 
 def test_rollup_precedence():
-    mk = lambda s: V.CheckResult("X", s, "", "")
+    def mk(s):
+        return V.CheckResult("X", s, "", "")
+
     assert V.rollup([mk("PASS"), mk("WARN"), mk("FAIL")]) == "FAIL"
     assert V.rollup([mk("PASS"), mk("WARN")]) == "WARN"
     assert V.rollup([mk("PASS")]) == "PASS"

@@ -30,11 +30,13 @@ def render_anomalies(role: str):
     med = len(df_anom[df_anom["severity"] == "MEDIUM"]) if not df_anom.empty else 0
     low = len(df_anom[df_anom["severity"] == "LOW"]) if not df_anom.empty else 0
 
+    trend_detail = f"{crit} crit, {high} high" if (crit + high > 0) else f"{len(alerts_list)} alerts"
+
     render_kpi_row([
         {
             "label": "Total Anomalies",
             "value": str(tot),
-            "trend_text": f"{len(alerts_list)} alerts",
+            "trend_text": trend_detail,
             "trend_direction": "down" if len(alerts_list) > 0 else "neutral",
             "subtext": "statistically scored"
         },

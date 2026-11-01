@@ -1,7 +1,6 @@
 import pandas as pd
-import pytest
 from app.db.base import SessionLocal
-from app.services.ingestion import infer_dataset_name, ingest_dataframe, TABLE_ORDER
+from app.services.ingestion import infer_dataset_name, ingest_dataframe
 from app.services.revenue import calculate_all_months
 from app.services.anomaly import detect_all_anomalies
 from app.rag.retriever import get_retriever

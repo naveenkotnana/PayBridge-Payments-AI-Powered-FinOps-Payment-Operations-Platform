@@ -1,6 +1,9 @@
 """One-command bootstrap: ingest -> revenue -> anomalies -> users -> evals.
 Run this first. Idempotent; safe to re-run."""
-import sys, pathlib, time
+import sys
+import pathlib
+import time
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from app.db.base import SessionLocal, init_db
@@ -16,10 +19,13 @@ MONTHS = ["2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09"]
 
 def main():
     t0 = time.time()
-    print("=" * 64); print("OpsPilot setup — synthetic data, local inference"); print("=" * 64)
+    print("=" * 64)
+    print("OpsPilot setup — synthetic data, local inference")
+    print("=" * 64)
 
     print("\n[1/6] Schema")
-    init_db(); print("  tables created")
+    init_db()
+    print("  tables created")
 
     print("\n[2/6] Ingestion + validation")
     ingest_all()

@@ -1,7 +1,8 @@
 """Agent + security evaluation. Executes real workflows against the real DB.
 Ollama is optional: cases assert on tool selection, evidence grounding,
 approval behaviour and failure recovery, all of which are deterministic."""
-import sys, pathlib, json
+import sys
+import pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from sqlalchemy import text
@@ -9,10 +10,9 @@ from app.db.base import SessionLocal, init_db
 from app.models import EvaluationResult, Approval, Workflow
 from app.agent.workflow import run_investigation, resume_after_approval
 from app.agent.tools import sql_tool, rag_tool, analytics_tool
-from app.agent.tools.action_tool import create_incident
 from app.agent.evidence import EvidenceBundle, validate, check_grounding
 from app.core.security import (hash_password, verify_password, ROLE_PERMISSIONS,
-                               create_access_token, decode_token)
+                               decode_token)
 
 CASES = []
 
@@ -122,7 +122,7 @@ def c11(db):
     db.add(Approval(approval_id="APR-TEST-3", workflow_id=wid, decision="REJECTED",
                     recommended_action="create_incident"))
     db.commit()
-    r = resume_after_approval(db, wid)
+    resume_after_approval(db, wid)
     n = db.execute(text("SELECT COUNT(*) FROM action_records WHERE workflow_id=:w"),
                    {"w": wid}).scalar()
     return n == 0, f"{n} actions created"
@@ -313,10 +313,11 @@ def main():
                                 else ("SECURITY" if cid.startswith("SEC") else "FAILURE"),
                                 case_id=cid, passed=bool(ok), score=1.0 if ok else 0.0,
                                 detail=f"{desc} -> {detail}"))
-    db.commit(); db.close()
+    db.commit()
+    db.close()
     n = len(CASES)
     print("-" * 78)
-    print(f"\n=== MEASURED AGENT/SECURITY RESULTS ===")
+    print("\n=== MEASURED AGENT/SECURITY RESULTS ===")
     print(f"cases  : {n}")
     print(f"passed : {passed}")
     print(f"failed : {n - passed}")

@@ -87,7 +87,7 @@ def compute_month(db: Session, billing_month: str) -> dict:
     rplans = {r[0]: float(r[1]) for r in db.execute(
         text("SELECT rental_plan_id, monthly_rental FROM rental_plans")).all()}
 
-    apartments = {}
+    apartments: dict = {}
     for r in rows:
         apartments.setdefault(r["apartment_id"], {"location": r["location_code"],
                                                   "devices": []})

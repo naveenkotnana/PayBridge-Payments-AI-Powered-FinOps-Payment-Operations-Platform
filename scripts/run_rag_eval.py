@@ -1,6 +1,7 @@
 """Run the RAG evaluation. Measures Recall@K, citation correctness, groundedness.
 All numbers reported are produced by this script — none are hand-written."""
-import sys, pathlib
+import sys
+import pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from app.db.base import SessionLocal, init_db
@@ -46,7 +47,8 @@ def main(persist=True):
                                     detail=f"recall@{K}={in_topk} top1={top1} "
                                            f"fact_coverage={cov:.2f} retrieved={docs[:3]}"))
     if db:
-        db.commit(); db.close()
+        db.commit()
+        db.close()
 
     n = len(RAG_CASES)
     print(f"\n{'case':8} {'pass':6} {'facts':7} {'inK':5} {'top1':5} retrieved")

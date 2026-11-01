@@ -1,5 +1,7 @@
 """Customer configuration loader. One codebase, many configurations."""
+import ast
 from pathlib import Path
+import re
 from typing import Any, Dict
 from app.core.config import ROOT
 
@@ -11,12 +13,12 @@ def _parse_yaml(path: Path) -> dict:
     """Minimal YAML subset parser so PyYAML is not a hard dependency.
     Falls back to PyYAML when installed."""
     try:
-        import yaml
+        import yaml  # type: ignore[import-untyped]
         return yaml.safe_load(path.read_text())
     except ImportError:
         pass
-    import ast, re
-    out, stack = {}, [(-1, out)]
+    out: Dict[str, Any] = {}
+    stack = [(-1, out)]
     for raw in path.read_text().splitlines():
         if not raw.strip() or raw.lstrip().startswith("#"):
             continue

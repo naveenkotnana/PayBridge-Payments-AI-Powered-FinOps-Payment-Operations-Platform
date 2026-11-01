@@ -366,7 +366,7 @@ html, body, [class*="css"], .stApp {
 .badge-fail     { background-color: #FEE2E2; color: #B91C1C; border: 1px solid #FCA5A5; }
 
 /* ----------------------------------------------------------- BUTTONS */
-.stButton > button, 
+.stButton > button,
 button[kind="secondary"],
 [data-testid="baseButton-secondary"] {
     background-color: #FFFFFF !important;
@@ -379,7 +379,7 @@ button[kind="secondary"],
     transition: all 0.15s ease-in-out !important;
 }
 
-.stButton > button:hover, 
+.stButton > button:hover,
 button[kind="secondary"]:hover,
 [data-testid="baseButton-secondary"]:hover {
     background-color: #F8FAFC !important;

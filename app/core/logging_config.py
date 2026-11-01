@@ -1,5 +1,9 @@
 """Structured JSON logging with workflow/trace correlation."""
-import json, logging, sys, time, uuid
+import json
+import logging
+import sys
+import time
+import uuid
 from contextvars import ContextVar
 
 trace_id_var: ContextVar[str] = ContextVar("trace_id", default="-")

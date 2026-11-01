@@ -7,36 +7,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: {python-version: "3.11"}
+        with:
+          python-version: "3.11"
+          cache: "pip"
 
-      - name: Install
+      - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install ruff mypy
 
-      - name: Lint
-        run: ruff check app dashboard scripts tests --select E9,F63,F7,F82
+      - name: Lint (Ruff)
+        run: ruff check app dashboard scripts tests
 
-      - name: Type check
-        run: mypy app --ignore-missing-imports --no-strict-optional || true
+      - name: Type check (Mypy)
+        run: mypy app/models app/core app/schemas app/services --ignore-missing-imports
 
-      - name: Bootstrap data
+      - name: Bootstrap data & schema
         run: python scripts/setup_all.py
 
-      - name: Unit tests
-        run: pytest tests/unit -q
+      - name: Verify database migration head
+        run: alembic current
 
-      - name: Integration tests
-        run: pytest tests/integration -q
+      - name: Automated test suite (Unit & Integration)
+        run: pytest tests/ -v --cov=app --cov-report=term-missing
 
-      # Ollama is NOT run in CI. The agent evaluation asserts on deterministic
-      # behaviour (tool selection, guardrails, approval, failure paths), which
-      # is exactly what should be gated. LLM narrative quality is evaluated
-      # locally via `python scripts/run_agent_eval.py` with Ollama running.
-      - name: RAG evaluation
+      - name: RAG evaluation (Retrieval & Grounding)
         run: python scripts/run_rag_eval.py
 
-      - name: Agent + security evaluation (Ollama mocked/absent)
+      - name: Agent & Security evaluation (Guardrails & Governance)
         run: python scripts/run_agent_eval.py
 
   docker:

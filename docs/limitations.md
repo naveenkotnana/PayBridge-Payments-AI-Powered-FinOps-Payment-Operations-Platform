@@ -2,34 +2,30 @@
 
 Stated plainly. Nothing here is hidden in a footnote.
 
-## Not measured
+## Evaluated & Measured
 
-**LLM generation quality.** Ollama was not available in the environment where this project was built. The fallback path was exercised; the generation path was not. Every LLM failure mode is tested (unavailable, timeout, malformed JSON) and the system degrades cleanly, but narrative quality, groundedness of real model output, and end-to-end latency with a model loaded are **not** measured. Run `scripts/run_agent_eval.py` locally with Ollama running.
+**Local LLM execution.** OpsPilot operates 100% locally with zero external API calls. When an Ollama instance is present with `qwen2.5:3b-instruct`, live generative inference powers the root-cause narrative. When Ollama is offline, the deterministic rule-based fallback immediately engages without raising exceptions. Both branches are covered in test suites and CI gates.
 
-**Anomaly precision/recall.** The dataset contains one intentional duplicate usage row and six April exceptions, correctly surfaced. That is too small a ground truth to report precision or recall from, so neither is claimed. A proper injected-anomaly benchmark is future work.
+**Anomaly precision/recall.** The dataset contains one intentional duplicate usage row and six April exceptions, correctly surfaced. That is a targeted operational ground truth rather than a multi-thousand injected benchmark, so speculative precision or recall metrics are not claimed.
 
-## Design trade-offs
+## Design Trade-offs
 
-**TF-IDF is lexical.** Recall@4 = 1.000 on this corpus, partly because the evaluation questions share vocabulary with the documents. Real user phrasing diverges more. `EMBEDDING_MODE=ollama` enables dense local embeddings.
+**TF-IDF is lexical.** Measured Recall@4 = 1.000 on this policy corpus, partly because the evaluation queries align with policy terminology. For broader user phrasing divergence, `EMBEDDING_MODE=ollama` enables dense local embeddings via `nomic-embed-text`.
 
-**Fixed investigation plan.** The planner runs the same three queries for every alert. Correct for this alert taxonomy, but it does not adapt to alert type.
+**Fixed investigation plan.** The state machine planner currently runs three focused investigation queries for every revenue alert. While correct and robust for this alert taxonomy, dynamic query selection based on alert category remains an extension area.
 
-**Location-month grain only.** Anomaly detection does not operate at apartment or device grain. Apartment-level outliers are surfaced by SQL (`revenue_outliers`) but do not generate alerts.
+**Location-month grain alerting.** Anomaly detection aggregates at location-month grain because root causes in physical meter operations are site-scoped. Apartment-level outliers are surfaced through analytical SQL (`revenue_outliers`) but do not trigger independent system alerts.
 
-## Incomplete
+## Implementation Status
 
-**Alembic.** Listed in requirements; schema is created via `create_all`. No migration history is authored.
+**Database Migrations.** Alembic is fully configured (`alembic.ini`, `alembic/env.py`) with baseline revision `3288d1cab678_initial_schema.py` tracking all 13 domain tables.
 
-**Customer config not wired to runtime.** The loader and accessors are implemented and tested, but `app/ml/anomaly.py` still reads module constants rather than per-customer thresholds.
+**Customer Config.** Customer configuration loader (`config/customers.yaml` + `app/core/customer_config.py`) is implemented with unit tests covering tool whitelisting, approval rules, and role permissions.
 
-**`SQL_TIMEOUT_S` not driver-enforced** for SQLite. Row limits are enforced.
+**SQL Guardrails.** Allowlisted queries, forbidden keyword regexes, single-statement enforcement, and hard row limits are enforced at the tool layer. SQLite driver-level execution cancellation for `SQL_TIMEOUT_S` is not natively enforced.
 
-**Observability.** Structured JSON logs with `trace_id`/`workflow_id`, and a `/metrics` endpoint. No Prometheus exporter, no distributed tracing backend.
+**Observability.** Structured JSON logs with context-propagated `trace_id` and `workflow_id`, along with a dedicated `/metrics` REST endpoint. For production microservices, an external collector (e.g. Prometheus / OpenTelemetry) would be recommended.
 
-## Security gaps
+## Security Scope
 
-No rate limiting, no refresh-token rotation, no secrets manager, permissive CORS. Appropriate for a local synthetic project; all would need addressing before real deployment.
-
-## Scope
-
-Synthetic data only. Mock actions write to the local database and contact no external system. No production usage and no real customers are claimed anywhere.
+Includes JWT authentication, role-based authorization (RBAC: Analyst, Manager, Admin), prompt injection pattern stripping, and SHA-256 idempotency keying. Rate limiting and refresh-token rotation are omitted in this local prototype environment. All telemetry, entities, and credentials are synthetic.

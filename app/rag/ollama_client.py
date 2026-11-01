@@ -3,10 +3,12 @@
 Every failure mode degrades to a structured unavailable-state instead of an
 exception, because an LLM outage must never take down the API.
 """
-import json, time
+import json
+import time
 from dataclasses import dataclass
 from typing import Optional, List
-import urllib.request, urllib.error
+import urllib.request
+import urllib.error
 
 from app.core.config import settings
 

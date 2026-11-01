@@ -4,29 +4,32 @@ The LLM is never asked to do arithmetic. It calls these and quotes the result.
 Every function returns the numbers AND the basis, so the evidence validator can
 check a claim against a real figure.
 """
+from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 
-def calculate_revenue(db: Session, billing_month: str, location: str = None) -> dict:
+def calculate_revenue(db: Session, billing_month: str, location: Optional[str] = None) -> dict:
     q = ("SELECT SUM(total_revenue) t, SUM(water_revenue) w, SUM(rental_revenue) r, "
          "COUNT(*) n FROM monthly_revenue WHERE billing_month=:m")
     p = {"m": billing_month}
     if location:
-        q += " AND location_code=:loc"; p["loc"] = location
+        q += " AND location_code=:loc"
+        p["loc"] = location
     row = db.execute(text(q), p).first()
     return {"billing_month": billing_month, "location": location or "ALL",
             "total_revenue": float(row[0] or 0), "water_revenue": float(row[1] or 0),
             "rental_revenue": float(row[2] or 0), "apartments": int(row[3] or 0)}
 
 
-def calculate_active_devices(db: Session, location: str = None) -> dict:
+def calculate_active_devices(db: Session, location: Optional[str] = None) -> dict:
     q = ("SELECT d.service_type, COUNT(*) FROM devices d "
          "JOIN apartments a ON a.apartment_id=d.apartment_id "
          "WHERE d.device_status='ACTIVE'")
     p = {}
     if location:
-        q += " AND a.location_code=:loc"; p["loc"] = location
+        q += " AND a.location_code=:loc"
+        p["loc"] = location
     q += " GROUP BY d.service_type"
     rows = db.execute(text(q), p).all()
     out = {r[0]: int(r[1]) for r in rows}
@@ -35,12 +38,13 @@ def calculate_active_devices(db: Session, location: str = None) -> dict:
     return out
 
 
-def calculate_revenue_change(db: Session, billing_month: str, location: str = None) -> dict:
+def calculate_revenue_change(db: Session, billing_month: str, location: Optional[str] = None) -> dict:
     q = ("SELECT billing_month, SUM(total_revenue) FROM monthly_revenue "
          "WHERE billing_month <= :m")
     p = {"m": billing_month}
     if location:
-        q += " AND location_code=:loc"; p["loc"] = location
+        q += " AND location_code=:loc"
+        p["loc"] = location
     q += " GROUP BY billing_month ORDER BY billing_month DESC LIMIT 2"
     rows = db.execute(text(q), p).all()
     if len(rows) < 2:

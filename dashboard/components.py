@@ -40,12 +40,12 @@ def api_call(method: str, path: str, **kw):
         if r.status_code >= 400:
             return None, f"{r.status_code}: {r.text[:300]}"
         return r.json(), None
-    except Exception as exc:
+    except Exception:
         # Fallback to in-process database execution for standalone Streamlit Cloud deployment
         try:
             from app.db.base import SessionLocal
             from app.models import (
-                User, Alert, IngestionRun, ValidationResult, AuditLog, Approval, ActionRecord, Anomaly, Workflow
+                User, Alert, IngestionRun, ValidationResult, AuditLog, ActionRecord, Anomaly, Workflow
             )
             from app.core.security import verify_password, create_access_token
             from app.agent.tools.sql_tool import run_named_query
@@ -176,18 +176,18 @@ def api_call(method: str, path: str, **kw):
                         q = q.filter(AuditLog.workflow_id == wid)
                     logs = q.order_by(AuditLog.timestamp.desc()).limit(lim).all()
                     return [{
-                        "audit_id": l.audit_id,
-                        "workflow_id": l.workflow_id,
-                        "user_id": l.user_id,
-                        "agent_node": l.agent_node,
-                        "tool_name": l.tool_name,
-                        "input_hash": l.input_hash,
-                        "result_status": l.result_status,
-                        "latency_ms": l.latency_ms,
-                        "approval_status": l.approval_status,
-                        "action": l.action,
-                        "timestamp": str(l.timestamp)
-                    } for l in logs], None
+                        "audit_id": log_entry.audit_id,
+                        "workflow_id": log_entry.workflow_id,
+                        "user_id": log_entry.user_id,
+                        "agent_node": log_entry.agent_node,
+                        "tool_name": log_entry.tool_name,
+                        "input_hash": log_entry.input_hash,
+                        "result_status": log_entry.result_status,
+                        "latency_ms": log_entry.latency_ms,
+                        "approval_status": log_entry.approval_status,
+                        "action": log_entry.action,
+                        "timestamp": str(log_entry.timestamp)
+                    } for log_entry in logs], None
 
                 # 11. Fallback for /workflows/{wid}
                 if path.startswith("/workflows/") and not path.endswith(("/approve", "/reject")):
@@ -220,7 +220,7 @@ def api_call(method: str, path: str, **kw):
 
             finally:
                 db.close()
-        except Exception as e:
+        except Exception:
             pass
 
         return None, (
@@ -242,7 +242,7 @@ def format_inr(val: float, compact: bool = False) -> str:
         if abs(v) >= 1000:
             return f"₹{v / 1000:.1f}\u00A0k"
         return f"₹{v:,.0f}"
-    
+
     # Standard Indian numbering system (xx,xx,xxx)
     s = f"{abs(v):.0f}"
     if len(s) <= 3:
@@ -258,14 +258,14 @@ def format_inr(val: float, compact: bool = False) -> str:
             groups.append(remaining)
         groups.reverse()
         grouped = ",".join(groups) + "," + last3
-    
+
     return f"{'-' if v < 0 else ''}₹{grouped}"
 
 
 def render_top_header(title: str, subtitle: str, role: str, username: str = ""):
     """Render the executive top header bar with live status, clearance badge, and user context."""
     now_str = dt.datetime.now().strftime("%b %d, %Y · %H:%M IST")
-    
+
     role_titles = {
         "ADMIN": ("Platform Administrator", "LEVEL 3 GOVERNANCE", "badge-critical"),
         "MANAGER": ("Operations Manager", "LEVEL 2 CLEARANCE", "badge-high"),

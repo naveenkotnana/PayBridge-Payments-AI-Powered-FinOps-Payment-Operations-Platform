@@ -26,7 +26,7 @@ def render_analytics(role: str):
         selected_q = st.selectbox("Analytical Model Query", queries_list, index=0)
     with col_btn:
         st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-        run_clicked = st.button("Run Model", type="primary", use_container_width=True)
+        st.button("Run Model", type="primary", use_container_width=True)
 
     data, err = api_call("GET", f"/revenue?query={selected_q}")
     if err:

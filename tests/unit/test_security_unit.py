@@ -1,4 +1,5 @@
-import pytest, jwt
+import pytest
+import jwt
 from app.core.security import (hash_password, verify_password, ROLE_PERMISSIONS,
                                decode_token)
 from app.agent.tools.sql_tool import validate_raw_sql, SQLToolError
