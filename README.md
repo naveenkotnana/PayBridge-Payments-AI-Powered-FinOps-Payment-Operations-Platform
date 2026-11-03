@@ -30,6 +30,12 @@
 
 ## 🎯 Executive Overview & Engineering Pitch
 
+> ### 💡 The 3% Problem
+> **What happens when SBI UPI drops by just 3% during a Friday evening flash sale?**  
+> **₹50 Lakhs in failed checkouts, panicking customers, and blind order cancellations.**
+>
+> When high-scale payment gateways process millions of transactions across heterogeneous core banking switches, even minor upstream latency surges trigger catastrophic merchant fulfillment holds. This platform demonstrates how to build an **autonomous payment operations and financial intelligence engine** that detects switch degradations in real time, alerts merchants to pause fulfillment, and automates root-cause investigations with zero-hallucination deterministic math.
+
 In modern digital economies, payment aggregators handle billions of rupees across heterogeneous issuing bank switches (SBI, HDFC, ICICI, Axis, Kotak) and payment rails (UPI, Credit/Debit Cards, Net Banking, Wallets). When an issuing bank switch degrades, even a **1.5% drop in success rate** translates to tens of lakhs in failed transactions, merchant panic, customer double-debit confusion, and erroneous order fulfillment holds.
 
 **Razorpay-Inspired AI Payments** bridges the gap between raw database transactions and operational financial intelligence:
