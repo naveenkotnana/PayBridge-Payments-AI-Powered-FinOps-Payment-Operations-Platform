@@ -67,3 +67,16 @@ class HealthOut(BaseModel):
     ollama_models: List[str]
     rag_chunks: int
     version: str = "2.0"
+
+
+class SimulationGenerateRequest(BaseModel):
+    scenario: str = "NORMAL_TRAFFIC"
+    count: int = Field(default=1000, ge=10, le=100000)
+    days_back: int = Field(default=7, ge=1, le=90)
+    seed: int = 42
+
+
+class SimulationAugmentRequest(BaseModel):
+    strategy: str = "STRATIFIED_FAILURE_BALANCE"
+    target_additional_records: int = Field(default=300, ge=10, le=20000)
+    seed: int = 42

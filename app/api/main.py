@@ -25,7 +25,12 @@ from app.models import (ActionRecord, Alert, Approval, AuditLog,
 from app.rag import ollama_client
 from app.rag.store import get_store
 from app.schemas.api import (AlertOut, ApprovalDecision, HealthOut,
-                             IncidentCreate, InvestigateResponse, LoginRequest, Token)
+                             IncidentCreate, InvestigateResponse, LoginRequest, Token,
+                             SimulationGenerateRequest, SimulationAugmentRequest)
+from app.services.data_availability import inspect_data_availability
+from app.services.data_generator import PaymentDataGenerator, SCENARIOS
+from app.services.data_quality import run_data_quality_audit
+from app.analytics.payment_analytics import PaymentAnalyticsEngine
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 setup_logging()
@@ -356,3 +361,63 @@ def evaluation(suite: Optional[str] = None, db: Session = Depends(get_db),
             "results": [{"suite": r.suite, "case_id": r.case_id, "passed": r.passed,
                          "score": float(r.score) if r.score is not None else None,
                          "detail": r.detail, "run_at": r.run_at} for r in rows]}
+
+
+# ---------------------------------------------------------------- simulation & synthetic data
+@app.get("/api/v1/simulation/availability", tags=["simulation"])
+def simulation_availability(db: Session = Depends(get_db), user=Depends(require("view"))):
+    """Inspect dataset availability, data gaps, class balance, and provenance."""
+    return inspect_data_availability(db)
+
+
+@app.get("/api/v1/simulation/scenarios", tags=["simulation"])
+def simulation_scenarios():
+    """List available operational simulation scenarios."""
+    return {
+        "scenarios": [
+            {"name": k, "description": v} for k, v in SCENARIOS.items()
+        ]
+    }
+
+
+@app.post("/api/v1/simulation/generate", tags=["simulation"])
+def simulation_generate(req: SimulationGenerateRequest, db: Session = Depends(get_db), user=Depends(require("operator"))):
+    """Generate synthetic payments, lifecycle events, and settlements under a scenario."""
+    gen = PaymentDataGenerator(db, seed=req.seed)
+    return gen.generate_scenario(
+        scenario=req.scenario,
+        count=req.count,
+        days_back=req.days_back,
+        data_source="SYNTHETIC",
+    )
+
+
+@app.post("/api/v1/simulation/augment", tags=["simulation"])
+def simulation_augment(req: SimulationAugmentRequest, db: Session = Depends(get_db), user=Depends(require("operator"))):
+    """Augment dataset with targeted rare edge cases preserving temporal and financial invariants."""
+    gen = PaymentDataGenerator(db, seed=req.seed)
+    return gen.augment_dataset(
+        strategy=req.strategy,
+        target_additional_records=req.target_additional_records,
+    )
+
+
+@app.get("/api/v1/simulation/quality-report", tags=["simulation"])
+def simulation_quality_report(db: Session = Depends(get_db), user=Depends(require("view"))):
+    """Run comprehensive mathematical and schema data quality validation."""
+    return run_data_quality_audit(db)
+
+
+@app.get("/api/v1/payments/kpis", tags=["payments"])
+def payment_kpis(days_back: int = Query(7, ge=0, le=90), db: Session = Depends(get_db), user=Depends(require("view"))):
+    """Get headline payment operational KPIs with deterministic arithmetic."""
+    engine = PaymentAnalyticsEngine(db, days_back=days_back)
+    return engine.get_kpi_summary()
+
+
+@app.get("/api/v1/payments/dashboard", tags=["payments"])
+def payment_dashboard(days_back: int = Query(7, ge=0, le=90), db: Session = Depends(get_db), user=Depends(require("view"))):
+    """Get complete real-time payment analytics dashboard payload."""
+    engine = PaymentAnalyticsEngine(db, days_back=days_back)
+    return engine.get_full_dashboard()
+

@@ -41,6 +41,7 @@ from dashboard.views.overview import render_overview
 from dashboard.views.revenue import render_revenue
 from dashboard.views.settings import render_settings
 from dashboard.views.transactions import render_transactions
+from dashboard.views.simulation import render_simulation
 
 st.set_page_config(
     page_title="OpsPilot — Operations Command Center",
@@ -244,6 +245,7 @@ with st.sidebar:
         "Approvals",
         "Audit Trail",
         "Data Quality",
+        "Data Simulation",
         "Settings"
     ]
 
@@ -304,3 +306,5 @@ elif current_page == "Data Quality":
     render_data_quality(role)
 elif current_page == "Settings":
     render_settings(role)
+elif current_page == "Data Simulation":
+    render_simulation(role)

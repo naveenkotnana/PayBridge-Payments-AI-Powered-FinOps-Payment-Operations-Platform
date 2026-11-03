@@ -9,6 +9,8 @@ from app.models.ops import (
 from app.models.payments import (
     Merchant, PaymentOrder, PaymentTransaction, Refund, Settlement,
     ReconciliationDiscrepancy, GatewayHealthMetric,
+    PaymentEvent, PaymentAttempt, PaymentIncident, IncidentMerchant,
+    Customer, SettlementItem, Dispute,
 )
 
 __all__ = [
@@ -18,4 +20,6 @@ __all__ = [
     "AuditLog", "EvaluationResult", "Merchant", "PaymentOrder",
     "PaymentTransaction", "Refund", "Settlement",
     "ReconciliationDiscrepancy", "GatewayHealthMetric",
+    "PaymentEvent", "PaymentAttempt", "PaymentIncident", "IncidentMerchant",
+    "Customer", "SettlementItem", "Dispute",
 ]
