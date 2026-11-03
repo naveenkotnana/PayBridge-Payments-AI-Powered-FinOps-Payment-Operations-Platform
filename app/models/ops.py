@@ -9,7 +9,9 @@ class User(Base):
     user_id = Column(String(30), primary_key=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
     password_hash = Column(String(200), nullable=False)
-    role = Column(String(20), index=True)   # ANALYST | MANAGER | ADMIN
+    role = Column(String(20), index=True)   # ANALYST | MANAGER | ADMIN | MERCHANT | CUSTOMER
+    merchant_id = Column(String(30), nullable=True)
+    customer_id = Column(String(40), nullable=True)
     is_active = Column(Boolean, default=True)
 
 
