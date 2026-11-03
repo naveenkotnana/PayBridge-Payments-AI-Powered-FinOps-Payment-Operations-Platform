@@ -3,6 +3,7 @@
 Enterprise-grade synthetic payment event generator designed for fintech simulations.
 Complies with:
 - Strict Indian payment rails (UPI, Card, NetBanking, Wallet) and major banks (HDFC, ICICI, AXIS, SBI, KOTAK).
+- Real-world company & digital store brands: Swiggy, Zomato, Zepto, CRED, Blinkit, Flipkart, BookMyShow, Nykaa, MakeMyTrip, Tata Neu.
 - Deterministic MDR fee and 18% GST calculation with Decimal arithmetic.
 - Full lifecycle modeling: Order -> Payment -> Attempt(s) -> Event(s) -> Refund / Settlement / Dispute.
 - 10 Configurable operational scenarios.
@@ -15,7 +16,7 @@ import json
 import logging
 import random
 import uuid
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 from app.db.base import init_db
@@ -38,6 +39,11 @@ log = logging.getLogger("opspilot.data_generator")
 TWO_PLACES = Decimal("0.01")
 
 
+def _now() -> dt.datetime:
+    """Return timezone-naive UTC datetime without deprecation warning."""
+    return dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
+
+
 def _dec(val: Any) -> Decimal:
     if val is None:
         return Decimal("0.00")
@@ -48,14 +54,216 @@ def _dec(val: Any) -> Decimal:
 FIRST_NAMES = ["Aarav", "Aditi", "Rahul", "Priya", "Vikram", "Sneha", "Rohan", "Ananya", "Amit", "Pooja", "Arjun", "Neha"]
 LAST_NAMES = ["Sharma", "Verma", "Patel", "Reddy", "Mehta", "Iyer", "Nair", "Gupta", "Kulkarni", "Singh", "Das", "Joshi"]
 
-MERCHANTS_MASTER = [
-    {"merchant_id": "mid_swiggy_01", "name": "Swiggy India", "email": "finance@swiggy.in", "business_category": "FOOD_DELIVERY", "settlement_cycle": "T+1", "pricing_plan": "ENTERPRISE", "risk_tier": "LOW"},
-    {"merchant_id": "mid_zomato_02", "name": "Zomato Ltd", "email": "settlements@zomato.com", "business_category": "FOOD_DELIVERY", "settlement_cycle": "T+1", "pricing_plan": "ENTERPRISE", "risk_tier": "LOW"},
-    {"merchant_id": "mid_flipkart_03", "name": "Flipkart Commerce", "email": "payments@flipkart.com", "business_category": "E_COMMERCE", "settlement_cycle": "T+1", "pricing_plan": "ENTERPRISE", "risk_tier": "LOW"},
-    {"merchant_id": "mid_bookmyshow_04", "name": "BookMyShow Ticketing", "email": "accounts@bookmyshow.com", "business_category": "TICKETING", "settlement_cycle": "T+2", "pricing_plan": "STANDARD_MDR", "risk_tier": "MEDIUM"},
-    {"merchant_id": "mid_cred_05", "name": "Dreamplug Technologies (CRED)", "email": "ops@cred.club", "business_category": "FINTECH", "settlement_cycle": "T+1", "pricing_plan": "ENTERPRISE", "risk_tier": "LOW"},
-    {"merchant_id": "mid_zepto_06", "name": "Zepto Quick Commerce", "email": "finance@zepto.com", "business_category": "E_COMMERCE", "settlement_cycle": "T+1", "pricing_plan": "STANDARD_MDR", "risk_tier": "LOW"},
+# Top Indian Real-World Digital Companies and Merchants
+MERCHANTS_MASTER: List[Dict[str, Any]] = [
+    {
+        "merchant_id": "mid_swiggy_01",
+        "name": "Swiggy India",
+        "email": "finance@swiggy.in",
+        "business_category": "FOOD_DELIVERY",
+        "settlement_cycle": "T+1",
+        "pricing_plan": "ENTERPRISE",
+        "risk_tier": "LOW",
+    },
+    {
+        "merchant_id": "mid_zomato_02",
+        "name": "Zomato Ltd",
+        "email": "settlements@zomato.com",
+        "business_category": "FOOD_DELIVERY",
+        "settlement_cycle": "T+1",
+        "pricing_plan": "ENTERPRISE",
+        "risk_tier": "LOW",
+    },
+    {
+        "merchant_id": "mid_zepto_06",
+        "name": "Zepto Quick Commerce",
+        "email": "finance@zepto.com",
+        "business_category": "QUICK_COMMERCE",
+        "settlement_cycle": "T+1",
+        "pricing_plan": "STANDARD_MDR",
+        "risk_tier": "LOW",
+    },
+    {
+        "merchant_id": "mid_cred_05",
+        "name": "Dreamplug Technologies (CRED)",
+        "email": "ops@cred.club",
+        "business_category": "FINTECH",
+        "settlement_cycle": "T+1",
+        "pricing_plan": "ENTERPRISE",
+        "risk_tier": "LOW",
+    },
+    {
+        "merchant_id": "mid_flipkart_03",
+        "name": "Flipkart Commerce",
+        "email": "payments@flipkart.com",
+        "business_category": "E_COMMERCE",
+        "settlement_cycle": "T+1",
+        "pricing_plan": "ENTERPRISE",
+        "risk_tier": "LOW",
+    },
+    {
+        "merchant_id": "mid_bookmyshow_04",
+        "name": "BookMyShow Ticketing",
+        "email": "accounts@bookmyshow.com",
+        "business_category": "TICKETING",
+        "settlement_cycle": "T+2",
+        "pricing_plan": "STANDARD_MDR",
+        "risk_tier": "MEDIUM",
+    },
+    {
+        "merchant_id": "mid_blinkit_07",
+        "name": "Blinkit Instant Commerce",
+        "email": "finance@blinkit.com",
+        "business_category": "QUICK_COMMERCE",
+        "settlement_cycle": "T+1",
+        "pricing_plan": "ENTERPRISE",
+        "risk_tier": "LOW",
+    },
+    {
+        "merchant_id": "mid_nykaa_08",
+        "name": "FSN E-Commerce (Nykaa)",
+        "email": "payments@nykaa.com",
+        "business_category": "BEAUTY_FASHION",
+        "settlement_cycle": "T+2",
+        "pricing_plan": "STANDARD_MDR",
+        "risk_tier": "LOW",
+    },
+    {
+        "merchant_id": "mid_makemytrip_09",
+        "name": "MakeMyTrip India",
+        "email": "settlements@makemytrip.com",
+        "business_category": "TRAVEL_HOSPITALITY",
+        "settlement_cycle": "T+1",
+        "pricing_plan": "ENTERPRISE",
+        "risk_tier": "LOW",
+    },
+    {
+        "merchant_id": "mid_tataneu_10",
+        "name": "Tata Digital (Tata Neu)",
+        "email": "ops@tatadigital.com",
+        "business_category": "SUPER_APP",
+        "settlement_cycle": "T+1",
+        "pricing_plan": "ENTERPRISE",
+        "risk_tier": "LOW",
+    },
 ]
+
+# Realistic Store Fronts and Order Receipts for Augmented Data
+MERCHANT_STORE_CONTEXTS: Dict[str, Dict[str, Any]] = {
+    "mid_swiggy_01": {
+        "store_names": [
+            "Swiggy Instamart - Koramangala",
+            "Swiggy Food - Meghana Foods",
+            "Swiggy Gourmet - Smoke House Deli",
+            "Swiggy Dineout - Toit Brewpub",
+            "Swiggy Minis - Artisan Bakery",
+        ],
+        "order_prefixes": ["SWIGGY-INSTAMART-", "SWIGGY-FOOD-", "SWIGGY-GOURMET-", "SWIGGY-DINEOUT-"],
+        "min_amt": 150.0,
+        "max_amt": 3200.0,
+    },
+    "mid_zomato_02": {
+        "store_names": [
+            "Zomato Food - Paradise Biryani",
+            "Zomato Delivery - Burger King",
+            "Zomato Gold - Haldiram's",
+            "Zomato Dining - Social Church Street",
+            "Zomato Everyday - Home Kitchen",
+        ],
+        "order_prefixes": ["ZOMATO-ORDER-", "ZOMATO-GOLD-", "ZOMATO-BIRYANI-", "ZOMATO-DINING-"],
+        "min_amt": 180.0,
+        "max_amt": 2800.0,
+    },
+    "mid_zepto_06": {
+        "store_names": [
+            "Zepto 10-Min - Indiranagar Hub",
+            "Zepto Cafe - Fresh Brews",
+            "Zepto Fresh - Organic Fruits & Veggies",
+            "Zepto Late Night - Snacks & Essentials",
+        ],
+        "order_prefixes": ["ZEPTO-10MIN-", "ZEPTO-CAFE-", "ZEPTO-FRESH-", "ZEPTO-NIGHT-"],
+        "min_amt": 99.0,
+        "max_amt": 2400.0,
+    },
+    "mid_cred_05": {
+        "store_names": [
+            "CRED Pay - HDFC Regalia Card Bill",
+            "CRED Store - Apple AirPods Pro",
+            "CRED Garage - FASTag Recharge",
+            "CRED Pay - ICICI Amazon Pay Card",
+            "CRED Mint - P2P Investment",
+        ],
+        "order_prefixes": ["CRED-BILLPAY-HDFC-", "CRED-STORE-", "CRED-FASTAG-", "CRED-BILLPAY-ICICI-"],
+        "min_amt": 1000.0,
+        "max_amt": 65000.0,
+    },
+    "mid_flipkart_03": {
+        "store_names": [
+            "Flipkart Supermart - Monthly Grocery",
+            "Flipkart Electronics - Samsung Galaxy S24",
+            "Flipkart Fashion - Levi's Apparel",
+            "Flipkart Big Billion Days Flash Sale",
+        ],
+        "order_prefixes": ["FK-SUPERMART-", "FK-ELECTRONICS-", "FK-FASHION-", "FK-BIGBILLION-"],
+        "min_amt": 499.0,
+        "max_amt": 48000.0,
+    },
+    "mid_bookmyshow_04": {
+        "store_names": [
+            "BookMyShow - PVR IMAX Tickets",
+            "BookMyShow Live - Diljit Dosanjh Concert",
+            "BookMyShow - INOX Insignia Luxury",
+            "BookMyShow Comedy - Zakir Khan Tour",
+        ],
+        "order_prefixes": ["BMS-IMAX-TICKET-", "BMS-CONCERT-", "BMS-INOX-VIP-", "BMS-STANDUP-"],
+        "min_amt": 350.0,
+        "max_amt": 6500.0,
+    },
+    "mid_blinkit_07": {
+        "store_names": [
+            "Blinkit Express - Whitefield Hub",
+            "Blinkit Print - Document Service",
+            "Blinkit Electronics - Cables & Chargers",
+            "Blinkit Pharmacy - Apollo Health",
+        ],
+        "order_prefixes": ["BLINKIT-EXP-", "BLINKIT-PRINT-", "BLINKIT-TECH-", "BLINKIT-HEALTH-"],
+        "min_amt": 80.0,
+        "max_amt": 2200.0,
+    },
+    "mid_nykaa_08": {
+        "store_names": [
+            "Nykaa Beauty - Luxe Perfumes",
+            "Nykaa Fashion - Ethnic Wear",
+            "Nykaa Cosmetics - MAC Lipsticks",
+            "Nykaa Man - Grooming Essentials",
+        ],
+        "order_prefixes": ["NYKAA-LUXE-", "NYKAA-FASHION-", "NYKAA-GLAM-", "NYKAA-MAN-"],
+        "min_amt": 399.0,
+        "max_amt": 9500.0,
+    },
+    "mid_makemytrip_09": {
+        "store_names": [
+            "MakeMyTrip - IndiGo DEL-BLR Flight",
+            "MakeMyTrip - Taj Exotica Goa Resort",
+            "MakeMyTrip - Airport Cab Transfer",
+            "MakeMyTrip Holidays - Manali Package",
+        ],
+        "order_prefixes": ["MMT-FLT-INDIGO-", "MMT-HOTEL-TAJ-", "MMT-CAB-TRANSFER-", "MMT-HOLIDAY-"],
+        "min_amt": 2400.0,
+        "max_amt": 52000.0,
+    },
+    "mid_tataneu_10": {
+        "store_names": [
+            "Tata Neu - Croma Electronics",
+            "Tata Neu - BigBasket Groceries",
+            "Tata Neu - Westside Fashion",
+            "Tata Neu - 1mg Medicines",
+        ],
+        "order_prefixes": ["TATANEU-CROMA-", "TATANEU-BB-", "TATANEU-WESTSIDE-", "TATANEU-1MG-"],
+        "min_amt": 450.0,
+        "max_amt": 42000.0,
+    },
+}
 
 PAYMENT_METHODS = ["UPI", "CARD", "NETBANKING", "WALLET"]
 METHOD_WEIGHTS = [0.65, 0.22, 0.09, 0.04]
@@ -110,6 +318,21 @@ def seed_merchants_and_customers(db: Session, num_customers_per_merchant: int = 
     merchants_created = 0
     customers_created = 0
 
+    # Ensure Aarav Sharma verified buyer profile exists first under Swiggy
+    aarav = db.query(Customer).filter(Customer.customer_id == "cust_sw_aarav").first()
+    if not aarav:
+        aarav = Customer(
+            customer_id="cust_sw_aarav",
+            merchant_id="mid_swiggy_01",
+            name="Aarav Sharma",
+            email="aarav.sharma@example.com",
+            contact="+919876543210",
+            is_synthetic=True,
+            data_source="SYNTHETIC",
+        )
+        db.add(aarav)
+        customers_created += 1
+
     for m_data in MERCHANTS_MASTER:
         m = db.query(Merchant).filter(Merchant.merchant_id == m_data["merchant_id"]).first()
         if not m:
@@ -120,7 +343,7 @@ def seed_merchants_and_customers(db: Session, num_customers_per_merchant: int = 
         # Seed synthetic customers for merchant
         existing_custs = db.query(Customer).filter(Customer.merchant_id == m_data["merchant_id"]).count()
         if existing_custs < num_customers_per_merchant:
-            for i in range(num_customers_per_merchant - existing_custs):
+            for _ in range(num_customers_per_merchant - existing_custs):
                 fn = random.choice(FIRST_NAMES)
                 ln = random.choice(LAST_NAMES)
                 cust_id = f"cust_{m_data['merchant_id'][-2:]}_{uuid.uuid4().hex[:8]}"
@@ -171,7 +394,7 @@ class PaymentDataGenerator:
 
         merchants = [m["merchant_id"] for m in MERCHANTS_MASTER]
 
-        start_time = dt.datetime.utcnow() - dt.timedelta(days=days_back)
+        start_time = _now() - dt.timedelta(days=days_back)
         total_seconds = days_back * 86400
         step_seconds = max(1, int(total_seconds / count))
 
@@ -190,32 +413,43 @@ class PaymentDataGenerator:
             if scenario == "HIGH_VOLUME_SURGE":
                 # Concentrate 80% of volume in the last 2 hours
                 if i < int(count * 0.8):
-                    cur_ts = dt.datetime.utcnow() - dt.timedelta(minutes=random.randint(5, 120))
+                    cur_ts = _now() - dt.timedelta(minutes=random.randint(5, 120))
                 else:
                     cur_ts = start_time + dt.timedelta(seconds=i * step_seconds)
             else:
                 cur_ts = start_time + dt.timedelta(seconds=i * step_seconds + random.randint(0, 10))
 
             merchant_id = random.choice(merchants)
-            cust = random.choice([c for c in customers if c.merchant_id == merchant_id] or customers)
+            merchant_ctx = MERCHANT_STORE_CONTEXTS.get(merchant_id, {})
+
+            # 10% chance to link transaction to verified Aarav Sharma for realistic customer testing
+            if i % 10 == 0:
+                cust = self.db.query(Customer).filter(Customer.customer_id == "cust_sw_aarav").first()
+                if not cust:
+                    cust = random.choice(customers)
+            else:
+                cust = random.choice([c for c in customers if c.merchant_id == merchant_id] or customers)
 
             # Method distribution
             method = random.choices(PAYMENT_METHODS, weights=METHOD_WEIGHTS)[0]
             bank = random.choice(BANKS)
             gateway = random.choice(GATEWAYS)
 
-            # Amount distribution by method
+            # Brand-tailored amount distribution
+            min_a = merchant_ctx.get("min_amt", 100.0)
+            max_a = merchant_ctx.get("max_amt", 5000.0)
+
             if method == "UPI":
-                amount = _dec(random.uniform(50.0, 3500.0))
+                amount = _dec(random.uniform(min_a, min(max_a, 4000.0)))
                 card_net = None
             elif method == "CARD":
-                amount = _dec(random.uniform(400.0, 15000.0))
+                amount = _dec(random.uniform(min_a, max_a))
                 card_net = random.choice(["VISA", "MASTERCARD", "RUPAY"])
             elif method == "NETBANKING":
-                amount = _dec(random.uniform(1500.0, 45000.0))
+                amount = _dec(random.uniform(max(min_a, 1000.0), max_a))
                 card_net = None
             else:
-                amount = _dec(random.uniform(100.0, 2500.0))
+                amount = _dec(random.uniform(min_a, min(max_a, 3000.0)))
                 card_net = None
 
             # Calculate deterministic fees
@@ -267,6 +501,10 @@ class PaymentDataGenerator:
             if is_failed and err_code:
                 err_desc = ERROR_CODES[err_code][1]
 
+            # Realistic brand receipt
+            prefix = random.choice(merchant_ctx.get("order_prefixes", ["ORDER-"]))
+            receipt = f"{prefix}{random.randint(10000, 99999)}"
+
             # Create Order
             order_id = f"order_{uuid.uuid4().hex[:14]}"
             order = PaymentOrder(
@@ -275,7 +513,7 @@ class PaymentDataGenerator:
                 customer_id=cust.customer_id,
                 amount=amount,
                 currency="INR",
-                receipt=f"rcpt_{uuid.uuid4().hex[:8]}",
+                receipt=receipt,
                 status="PAID" if not is_failed else "ATTEMPTED",
                 is_synthetic=(data_source != "REAL"),
                 data_source=data_source,
@@ -330,7 +568,7 @@ class PaymentDataGenerator:
                 is_synthetic=(data_source != "REAL"),
                 data_source=data_source,
                 augmentation_method=augmentation_method,
-                generated_at=dt.datetime.utcnow(),
+                generated_at=_now(),
                 created_at=cur_ts,
                 captured_at=captured_at,
             )
@@ -343,7 +581,7 @@ class PaymentDataGenerator:
                 event_id=f"evt_{uuid.uuid4().hex[:14]}",
                 payment_id=payment_id,
                 event_type="PAYMENT_CREATED",
-                event_payload=json.dumps({"amount": float(amount), "method": method}),
+                event_payload=json.dumps({"amount": float(amount), "method": method, "store": random.choice(merchant_ctx.get("store_names", ["Store"]))}),
                 event_source="SIMULATOR",
                 idempotency_key=f"{payment_id}::PAYMENT_CREATED",
                 occurred_at=cur_ts - dt.timedelta(seconds=5),
@@ -365,10 +603,6 @@ class PaymentDataGenerator:
             self.db.add(evt_terminal)
             events_created += 1
 
-            # Duplicate event scenario: simulate duplicate webhook arrival handled by dedup
-            if scenario == "DUPLICATE_EVENTS" and i % 10 == 0:
-                pass
-
             # Create Payment Attempt (1st attempt)
             err_cat = ERROR_CODES.get(err_code, ("UNKNOWN", ""))[0] if err_code else None
             att1 = PaymentAttempt(
@@ -386,67 +620,52 @@ class PaymentDataGenerator:
             self.db.add(att1)
             attempts_created += 1
 
-            # Retry Simulation: if retryable failure, 65% chance customer/system retried
-            if is_failed and err_cat == "RETRYABLE" and random.random() < 0.65:
-                # 2nd attempt, optionally on alternate gateway
-                retry_gw = random.choice([g for g in GATEWAYS if g != gateway] or GATEWAYS)
-                retry_recovered = (random.random() < 0.60)  # 60% recovery rate on retry
+            # If retryable failure, create a 2nd retry attempt
+            if is_failed and err_cat == "RETRYABLE" and random.random() < 0.60:
+                recovered = random.random() < 0.45
                 att2 = PaymentAttempt(
                     attempt_id=f"att_{uuid.uuid4().hex[:14]}",
                     payment_id=payment_id,
                     attempt_number=2,
-                    gateway=retry_gw,
+                    gateway="ICICI_PAYSEAL" if gateway != "ICICI_PAYSEAL" else "AXIS_EPG",
                     bank=bank,
-                    status="AUTHORIZED" if retry_recovered else "FAILED",
-                    error_code=None if retry_recovered else err_code,
-                    error_category=None if retry_recovered else err_cat,
-                    latency_ms=random.randint(300, 1100),
-                    attempted_at=cur_ts + dt.timedelta(seconds=random.randint(12, 45)),
+                    status="AUTHORIZED" if recovered else "FAILED",
+                    error_code=None if recovered else err_code,
+                    error_category=None if recovered else err_cat,
+                    latency_ms=random.randint(220, 680),
+                    attempted_at=cur_ts + dt.timedelta(seconds=random.randint(15, 60)),
                 )
                 self.db.add(att2)
                 attempts_created += 1
 
-                if retry_recovered:
-                    # Update payment and order to CAPTURED
-                    txn.status = "CAPTURED"
-                    txn.captured_at = att2.attempted_at
-                    txn.gateway = retry_gw
-                    txn.error_code = None
-                    txn.error_description = None
-                    order.status = "PAID"
-                    is_failed = False
-
-            # Refund Simulation (Scenario or baseline 2.5%)
-            refund_prob = 0.16 if scenario == "REFUND_ANOMALIES" else 0.025
-            if not is_failed and random.random() < refund_prob:
-                is_partial = random.random() < 0.30
-                rfnd_amt = _dec(amount * Decimal("0.50")) if is_partial else amount
+            # Simulate Refunds for ~3.5% of captured transactions
+            if not is_failed and (scenario == "REFUND_ANOMALIES" or random.random() < 0.035):
+                ref_amt = amount if random.random() < 0.80 else _dec(amount * Decimal("0.50"))
+                refund_id = f"rfnd_{uuid.uuid4().hex[:14]}"
                 refund = Refund(
-                    refund_id=f"rfnd_{uuid.uuid4().hex[:14]}",
+                    refund_id=refund_id,
                     payment_id=payment_id,
                     merchant_id=merchant_id,
-                    amount=rfnd_amt,
+                    amount=ref_amt,
                     currency="INR",
-                    status="PROCESSED",
-                    speed="INSTANT" if random.random() < 0.40 else "OPTIMAL",
-                    reason="CUSTOMER_REQUEST",
-                    reconciled=False,
+                    speed=random.choice(["NORMAL", "INSTANT"]),
+                    status="PROCESSED" if random.random() < 0.95 else "FAILED",
+                    reason=random.choice(["Customer cancellation", "Item out of stock", "Merchant initiated", "Delivery delayed"]),
                     is_synthetic=True,
                     data_source=data_source,
-                    created_at=cur_ts + dt.timedelta(minutes=random.randint(15, 240)),
+                    created_at=cur_ts + dt.timedelta(hours=random.randint(2, 48)),
                 )
                 self.db.add(refund)
                 refunds_created += 1
 
-            # Dispute / Chargeback Simulation (0.8% baseline or fraud spike)
-            if not is_failed and random.random() < 0.008:
+            # Simulate Disputes / Chargebacks for ~0.3% of transactions
+            if not is_failed and random.random() < 0.003:
                 disp = Dispute(
                     dispute_id=f"disp_{uuid.uuid4().hex[:14]}",
                     payment_id=payment_id,
                     merchant_id=merchant_id,
                     amount=amount,
-                    currency="INR",
-                    reason=random.choice(["FRAUDULENT", "UNRECOGNIZED", "DEFECTIVE_MERCHANDISE"]),
+                    reason="FRAUDULENT_TRANSACTION",
                     status="OPEN",
                     phase="CHARGEBACK",
                     evidence_submitted=False,
@@ -509,7 +728,7 @@ class PaymentDataGenerator:
             net_payout = _dec(gross - fee_tot - tax_tot)
 
             status = "PENDING" if is_delayed else "SETTLED"
-            utr = None if is_delayed else f"UTR{dt.datetime.utcnow().strftime('%Y%m%d')}{random.randint(100000, 999999)}"
+            utr = None if is_delayed else f"UTR{_now().strftime('%Y%m%d')}{random.randint(100000, 999999)}"
 
             settlement_id = f"setl_{uuid.uuid4().hex[:14]}"
             settlement = Settlement(
@@ -558,11 +777,15 @@ class PaymentDataGenerator:
         - STRATIFIED_FAILURE_BALANCE: Generates rare failure scenarios (e.g. CARD_SECURITY_VIOLATION, FRAUD_BLOCK)
           without altering existing real records.
         - UPI_LATENCY_AUGMENTATION: Adds high-latency edge cases for ML anomaly models.
+        - STORE_NAME_AUGMENTATION: Injects rich augmented retail orders across Swiggy, Zomato, Zepto, CRED, Blinkit.
+        - FESTIVE_SURGE_AUGMENTATION: Simulates flash sale surges and transaction spikes.
         """
         log.info("Running data augmentation strategy: %s (+%d records)", strategy, target_additional_records)
         scenario_map = {
             "STRATIFIED_FAILURE_BALANCE": "SIMULTANEOUS_INCIDENTS",
             "UPI_LATENCY_AUGMENTATION": "UPI_DEGRADATION",
+            "STORE_NAME_AUGMENTATION": "NORMAL_TRAFFIC",
+            "FESTIVE_SURGE_AUGMENTATION": "HIGH_VOLUME_SURGE",
         }
         chosen_scenario = scenario_map.get(strategy, "NORMAL_TRAFFIC")
 

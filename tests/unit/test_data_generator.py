@@ -12,6 +12,7 @@ from app.models.payments import (
 )
 from app.services.data_availability import inspect_data_availability
 from app.services.data_generator import (
+    MERCHANTS_MASTER,
     PaymentDataGenerator,
     calculate_fees,
     seed_merchants_and_customers,
@@ -32,10 +33,11 @@ def mem_db():
 
 def test_seed_merchants_and_customers(mem_db):
     res = seed_merchants_and_customers(mem_db, num_customers_per_merchant=5)
-    assert res["merchants_seeded"] == 6
-    assert res["customers_seeded"] == 30
-    assert mem_db.query(Merchant).count() == 6
-    assert mem_db.query(Customer).count() == 30
+    expected_merchants = len(MERCHANTS_MASTER)
+    assert res["merchants_seeded"] == expected_merchants
+    assert res["customers_seeded"] == expected_merchants * 5
+    assert mem_db.query(Merchant).count() == expected_merchants
+    assert mem_db.query(Customer).count() == expected_merchants * 5
 
     # Idempotent re-run
     res2 = seed_merchants_and_customers(mem_db, num_customers_per_merchant=5)
@@ -110,6 +112,6 @@ def test_data_availability_inspector(mem_db):
     assert report["provenance"]["synthetic_records"] > 0
     assert "tables" in report
     assert report["tables"]["transactions"]["total"] == 60
-    assert report["tables"]["merchants"]["total"] == 6
+    assert report["tables"]["merchants"]["total"] == len(MERCHANTS_MASTER)
     assert "distributions" in report
     assert report["distributions"]["failure_rate_pct"] >= 0.0
