@@ -93,6 +93,8 @@ DEMO_USERS = [
     ("USR-003", "admin",   "admin123",   "ADMIN",   None, None),
     ("USR-004", "merchant_swiggy", "merchant123", "MERCHANT", "mid_swiggy_01", None),
     ("USR-005", "customer_aarav",  "customer123", "CUSTOMER", None, "cust_sw_aarav"),
+    ("USR-006", "customer",        "customer123", "CUSTOMER", None, "cust_sw_aarav"),
+    ("USR-007", "merchant",        "merchant123", "MERCHANT", "mid_swiggy_01", None),
 ]
 
 

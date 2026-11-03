@@ -22,49 +22,52 @@ from app.models.payments import (
 )
 
 
-def render_customer_portal(customer_id: str = "cust_sw_aarav"):
-    st.markdown("""
-    <div style="margin-bottom:1.5rem;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-                <span class="fintech-badge badge-low" style="margin-bottom:6px; display:inline-block;">WORKSPACE 1 • CUSTOMER PORTAL</span>
-                <h1 style="font-size:1.85rem; font-weight:800; color:#0A142F; margin:0;">
-                    My Payments & Account Activity
-                </h1>
-                <p style="color:#64748B; font-size:0.92rem; margin-top:4px;">
-                    Track your orders, live payment verification timelines, and refund status.
-                </p>
-            </div>
-            <div style="text-align:right;">
-                <span class="fintech-badge" style="background:#E0F2FE; color:#0369A1; font-weight:700;">
-                    VERIFIED BUYER ACCOUNT
-                </span>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
+def render_customer_portal(customer_id: str = "cust_sw_aarav", page: str = "Customer Home"):
     with SessionLocal() as db:
         # Resolve customer details
         cust = db.query(Customer).filter(Customer.customer_id == customer_id).first()
         if not cust:
-            # Fallback to first customer or create default
             cust = db.query(Customer).first()
             if cust:
                 customer_id = cust.customer_id
 
+        cust_name = cust.name if cust else "Aarav Sharma"
+        cust_email = cust.email if cust else "aarav.sharma@example.com"
+
+        st.markdown(f"""
+        <div style="margin-bottom:1.5rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <span class="fintech-badge badge-low" style="margin-bottom:6px; display:inline-block;">WORKSPACE 1 • CUSTOMER PORTAL</span>
+                    <h1 style="font-size:1.85rem; font-weight:800; color:#0A142F; margin:0;">
+                        {cust_name}'s Account
+                    </h1>
+                    <p style="color:#64748B; font-size:0.92rem; margin-top:4px;">
+                        Logged in as <b>{cust_email}</b> • Scoped Customer ID: <code>{customer_id}</code>
+                    </p>
+                </div>
+                <div style="text-align:right;">
+                    <span class="fintech-badge" style="background:#E0F2FE; color:#0369A1; font-weight:700;">
+                        VERIFIED BUYER ACCOUNT
+                    </span>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
         # Available customers switcher for demo convenience
-        all_custs = db.query(Customer).limit(10).all()
-        if all_custs:
+        all_custs = db.query(Customer).limit(8).all()
+        if all_custs and len(all_custs) > 1:
             cust_options = {c.customer_id: f"{c.name} ({c.email})" for c in all_custs}
             sel_cid = st.selectbox(
-                "Switch Customer Account (Demo Selector):",
+                "Switch Customer Profile (Demo Switcher):",
                 options=list(cust_options.keys()),
                 format_func=lambda x: cust_options[x],
                 index=list(cust_options.keys()).index(customer_id) if customer_id in cust_options else 0,
             )
-            customer_id = sel_cid
-            cust = db.query(Customer).filter(Customer.customer_id == customer_id).first()
+            if sel_cid != customer_id:
+                st.session_state["customer_id"] = sel_cid
+                st.rerun()
 
         # Query Customer Transactions (STRICT DATA ISOLATION)
         txns = (
@@ -75,23 +78,16 @@ def render_customer_portal(customer_id: str = "cust_sw_aarav"):
             .all()
         )
 
-        tab_home, tab_txns, tab_timeline, tab_notifications = st.tabs([
-            "🏠 Customer Home",
-            "💳 My Transactions",
-            "⏱️ Payment Timeline & Details",
-            "🔔 Payment Notifications",
-        ])
+        total_count = len(txns)
+        captured = [t[0] for t in txns if t[0].status == "CAPTURED"]
+        pending = [t[0] for t in txns if t[0].status in ("PENDING", "AUTHORIZED")]
+        failed = [t[0] for t in txns if t[0].status == "FAILED"]
+
+        total_spent = sum([Decimal(str(t.amount)) for t in captured], Decimal("0.00"))
+        pending_amount = sum([Decimal(str(t.amount)) for t in pending], Decimal("0.00"))
 
         # --------------------------------------------------------- A. Customer Home
-        with tab_home:
-            total_count = len(txns)
-            captured = [t[0] for t in txns if t[0].status == "CAPTURED"]
-            pending = [t[0] for t in txns if t[0].status in ("PENDING", "AUTHORIZED")]
-            failed = [t[0] for t in txns if t[0].status == "FAILED"]
-
-            total_spent = sum([Decimal(str(t.amount)) for t in captured], Decimal("0.00"))
-            pending_amount = sum([Decimal(str(t.amount)) for t in pending], Decimal("0.00"))
-
+        if "Home" in page:
             # Top KPI metrics
             col1, col2, col3, col4 = st.columns(4)
             with col1:
@@ -105,13 +101,13 @@ def render_customer_portal(customer_id: str = "cust_sw_aarav"):
 
             if pending:
                 st.warning(
-                    f"⚠️ **Attention:** You have {len(pending)} payment(s) awaiting bank confirmation. "
+                    f"⚠️ **Attention {cust_name}:** You have **{len(pending)} payment(s) awaiting bank confirmation**. "
                     "Please avoid initiating a duplicate payment until the final status is verified."
                 )
 
-            st.markdown("### Recent Activity")
+            st.markdown("### Recent Payment Activity")
             if txns:
-                for t, m_name in txns[:4]:
+                for t, m_name in txns[:5]:
                     status_color = "#16A34A" if t.status == "CAPTURED" else ("#D97706" if t.status in ("PENDING", "AUTHORIZED") else "#DC2626")
                     status_bg = "#DCFCE7" if t.status == "CAPTURED" else ("#FEF3C7" if t.status in ("PENDING", "AUTHORIZED") else "#FEE2E2")
                     st.markdown(f"""
@@ -134,8 +130,8 @@ def render_customer_portal(customer_id: str = "cust_sw_aarav"):
                 st.info("No transaction history recorded for this customer account.")
 
         # --------------------------------------------------------- B. My Transactions
-        with tab_txns:
-            st.markdown("### Transaction Ledger")
+        elif "Transactions" in page:
+            st.markdown("### My Transaction History")
             if txns:
                 records = []
                 for t, m_name in txns:
@@ -154,8 +150,8 @@ def render_customer_portal(customer_id: str = "cust_sw_aarav"):
                 st.write("No transactions found.")
 
         # --------------------------------------------------------- C. Payment Details & Timeline
-        with tab_timeline:
-            st.markdown("### Detailed Transaction Verification Timeline")
+        elif "Timeline" in page or "Details" in page:
+            st.markdown("### Payment Verification Timeline")
             if txns:
                 selected_pid = st.selectbox(
                     "Select a transaction to inspect live verification audit trail:",
@@ -169,7 +165,6 @@ def render_customer_portal(customer_id: str = "cust_sw_aarav"):
                 attempts = db.query(PaymentAttempt).filter(PaymentAttempt.payment_id == selected_pid).order_by(PaymentAttempt.attempt_number.asc()).all()
                 refund = db.query(Refund).filter(Refund.payment_id == selected_pid).first()
 
-                # Visual Timeline Card
                 st.markdown(f"""
                 <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:20px; margin-bottom:1.5rem;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
@@ -233,7 +228,7 @@ def render_customer_portal(customer_id: str = "cust_sw_aarav"):
                     """, unsafe_allow_html=True)
 
         # --------------------------------------------------------- D. Customer Notifications
-        with tab_notifications:
+        elif "Notifications" in page:
             st.markdown("### Official Payment Notifications")
             st.caption("Evidence-backed notifications. Notifications only state confirmed facts.")
 

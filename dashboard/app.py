@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """Razorpay-Inspired AI Payments – Role-Based Fintech Platform UI.
 
-Workspaces:
-1. Customer Portal (/customer)
-2. Merchant Portal (/merchant)
-3. Admin Dashboard (/admin)
-4. AI Investigation Workspace (/ai-investigation)
+Independent Role-Based Workspaces:
+1. Customer Portal (/customer) — Scoped buyer transactions, verification timeline & notifications
+2. Merchant Portal (/merchant) — Scoped business GMV, fulfillment hold advisories & settlements
+3. Admin Dashboard (/admin) — Executive overview, bank switch telemetry, incident command & audit
+4. AI Investigation Workspace (/ai-investigation) — Evidence-based root-cause analysis & human approval gate
 + Interactive SBI UPI Live Lifecycle Demonstration.
 
 Synthetic portfolio project. Local Ollama LLM. Zero paid external APIs.
@@ -56,7 +56,6 @@ from dashboard.views.overview import render_overview
 from dashboard.views.revenue import render_revenue
 from dashboard.views.settings import render_settings
 from dashboard.views.transactions import render_transactions
-from dashboard.views.simulation import render_simulation
 
 st.set_page_config(
     page_title="Razorpay-Inspired AI Payments — Role-Based Fintech Platform",
@@ -164,7 +163,13 @@ def login_view():
                     if err:
                         st.error(err)
                     elif res:
-                        st.session_state.update(token=res["access_token"], role=res["role"], user_id=res["user_id"], username=u_ad, workspace="🛡️ Admin Dashboard")
+                        st.session_state.clear()
+                        st.session_state.update(
+                            token=res["access_token"],
+                            role=res["role"],
+                            user_id=res["user_id"],
+                            username=u_ad,
+                        )
                         st.rerun()
 
         # 2. MERCHANT PORTAL
@@ -189,7 +194,14 @@ def login_view():
                     if err:
                         st.error(err)
                     elif res:
-                        st.session_state.update(token=res["access_token"], role="MERCHANT", user_id=res["user_id"], username=u_m, merchant_id="mid_swiggy_01", workspace="🏪 Merchant Portal")
+                        st.session_state.clear()
+                        st.session_state.update(
+                            token=res["access_token"],
+                            role="MERCHANT",
+                            user_id=res["user_id"],
+                            username=u_m,
+                            merchant_id="mid_swiggy_01",
+                        )
                         st.rerun()
 
         # 3. CUSTOMER PORTAL
@@ -214,7 +226,14 @@ def login_view():
                     if err:
                         st.error(err)
                     elif res:
-                        st.session_state.update(token=res["access_token"], role="CUSTOMER", user_id=res["user_id"], username=u_c, customer_id="cust_sw_aarav", workspace="👤 Customer Portal")
+                        st.session_state.clear()
+                        st.session_state.update(
+                            token=res["access_token"],
+                            role="CUSTOMER",
+                            user_id=res["user_id"],
+                            username=u_c,
+                            customer_id="cust_sw_aarav",
+                        )
                         st.rerun()
 
         # 4. OPERATIONS / ANALYST PORTAL
@@ -239,7 +258,13 @@ def login_view():
                     if err:
                         st.error(err)
                     elif res:
-                        st.session_state.update(token=res["access_token"], role="ANALYST", user_id=res["user_id"], username=u_o, workspace="🤖 AI Investigation Workspace")
+                        st.session_state.clear()
+                        st.session_state.update(
+                            token=res["access_token"],
+                            role="ANALYST",
+                            user_id=res["user_id"],
+                            username=u_o,
+                        )
                         st.rerun()
 
         st.markdown("""
@@ -270,7 +295,7 @@ USER_PROFILES = {
 user_profile = USER_PROFILES.get(username.lower(), {"name": f"User {username}", "title": role, "clearance": role})
 
 
-# ------------------------------------------------------------------- Sidebar
+# ------------------------------------------------------------------- Role-Specific Sidebar Navigation
 with st.sidebar:
     st.markdown("""
     <div class="sidebar-brand-box">
@@ -283,33 +308,80 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    # Four Primary Workspaces + Live Demo
-    PRIMARY_WORKSPACES = [
-        "🛡️ Admin Dashboard",
-        "🏪 Merchant Portal",
-        "👤 Customer Portal",
-        "🤖 AI Investigation Workspace",
-        "🎬 SBI UPI Live Demo",
-        "⚙️ Simulation Workbench",
-        "📈 Deep Operational Analytics",
-    ]
-
-    # Role enforcement on default workspace
-    default_ws = st.session_state.get("workspace", "🛡️ Admin Dashboard")
+    # 1. Strictly Scoped Customer Navigation
     if role == "CUSTOMER":
-        default_ws = "👤 Customer Portal"
+        st.markdown('<div class="sidebar-section-header">CUSTOMER ACCOUNT</div>', unsafe_allow_html=True)
+        customer_options = [
+            "🏠 Customer Home",
+            "💳 My Transactions",
+            "⏱️ Payment Details & Timeline",
+            "🔔 Customer Notifications",
+        ]
+        current_nav = st.radio(
+            "Customer Navigation",
+            options=customer_options,
+            key=f"nav_{role}_{username}",
+            label_visibility="collapsed"
+        )
+
+    # 2. Strictly Scoped Merchant Navigation
     elif role == "MERCHANT":
-        default_ws = "🏪 Merchant Portal"
+        st.markdown('<div class="sidebar-section-header">MERCHANT PORTAL</div>', unsafe_allow_html=True)
+        merchant_options = [
+            "📊 Merchant Overview",
+            "💳 Transactions",
+            "🚨 Merchant Alerts & Advisories",
+            "📈 Payment Analytics",
+            "💰 Settlement Overview",
+        ]
+        current_nav = st.radio(
+            "Merchant Navigation",
+            options=merchant_options,
+            key=f"nav_{role}_{username}",
+            label_visibility="collapsed"
+        )
 
-    matching_ws_idx = PRIMARY_WORKSPACES.index(default_ws) if default_ws in PRIMARY_WORKSPACES else 0
+    # 3. Operations & Analyst Navigation
+    elif role in ("ANALYST", "MANAGER"):
+        st.markdown('<div class="sidebar-section-header">FINOPS OPERATIONS</div>', unsafe_allow_html=True)
+        ops_options = [
+            "🤖 AI Investigation Workspace",
+            "🎬 SBI UPI Live Demonstration",
+            "🚨 Incident Command Centre",
+            "🏦 Bank Switch Telemetry",
+            "📊 Executive Overview",
+            "🛡️ Platform Audit & Approvals",
+        ]
+        current_nav = st.radio(
+            "Operations Navigation",
+            options=ops_options,
+            key=f"nav_{role}_{username}",
+            label_visibility="collapsed"
+        )
 
-    st.markdown('<div class="sidebar-section-header">WORKSPACE SELECTION</div>', unsafe_allow_html=True)
-    current_workspace = st.radio(
-        "Workspace Selector",
-        options=PRIMARY_WORKSPACES,
-        index=matching_ws_idx,
-        label_visibility="collapsed"
-    )
+    # 4. Platform Administrator Navigation
+    else:
+        st.markdown('<div class="sidebar-section-header">PLATFORM GOVERNANCE</div>', unsafe_allow_html=True)
+        admin_options = [
+            "📊 Executive Overview",
+            "💳 Payment Monitoring",
+            "🏦 Bank Switch Telemetry",
+            "🚨 Incident Command Centre",
+            "👥 Merchants & Customers",
+            "⚙️ Data Pipeline & Ingestion",
+            "🛡️ Platform Audit & Approvals",
+            "🤖 AI Investigation Workspace",
+            "🎬 SBI UPI Live Demonstration",
+            "🏪 Preview Merchant Portal",
+            "👤 Preview Customer Portal",
+            "📈 Deep Operational Analytics",
+        ]
+        current_nav = st.radio(
+            "Admin Navigation",
+            options=admin_options,
+            key=f"nav_{role}_{username}",
+            label_visibility="collapsed"
+        )
 
     # User profile and sign-out card
     st.markdown(f"""
@@ -333,31 +405,30 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 
-# ------------------------------------------------------------- Page Router across 4 Workspaces
-if current_workspace == "👤 Customer Portal":
-    # Workspace 1: Customer Portal
-    render_customer_portal(customer_id=active_customer_id)
+# ------------------------------------------------------------- Role-Aware Page Router
+if role == "CUSTOMER":
+    # Customer Portal (Workspace 1)
+    render_customer_portal(customer_id=active_customer_id, page=current_nav)
 
-elif current_workspace == "🏪 Merchant Portal":
-    # Workspace 2: Merchant Portal
-    render_merchant_portal(merchant_id=active_merchant_id)
+elif role == "MERCHANT":
+    # Merchant Portal (Workspace 2)
+    render_merchant_portal(merchant_id=active_merchant_id, page=current_nav)
 
-elif current_workspace == "🛡️ Admin Dashboard":
-    # Workspace 3: Admin Dashboard
-    render_admin_dashboard(role=role)
-
-elif current_workspace == "🤖 AI Investigation Workspace":
-    # Workspace 4: AI Investigation Workspace
+elif current_nav == "🤖 AI Investigation Workspace":
+    # AI Investigation Workspace (Workspace 4)
     render_ai_investigation(role=role)
 
-elif current_workspace == "🎬 SBI UPI Live Demo":
-    # Interactive 6-step SBI UPI demonstration
+elif current_nav == "🎬 SBI UPI Live Demonstration":
+    # Interactive SBI UPI Live Lifecycle Demonstration
     render_sbi_upi_demo(role=role)
 
-elif current_workspace == "⚙️ Simulation Workbench":
-    render_simulation(role=role)
+elif current_nav == "🏪 Preview Merchant Portal":
+    render_merchant_portal(merchant_id="mid_swiggy_01", page="Merchant Overview")
 
-elif current_workspace == "📈 Deep Operational Analytics":
+elif current_nav == "👤 Preview Customer Portal":
+    render_customer_portal(customer_id="cust_sw_aarav", page="Customer Home")
+
+elif current_nav == "📈 Deep Operational Analytics":
     sub_page = st.sidebar.selectbox("Deep Dive Views:", [
         "Overview", "Revenue", "Transactions", "Exceptions", "Anomalies",
         "Analytics", "Approvals", "Audit Trail", "Data Quality", "Settings"
@@ -382,3 +453,7 @@ elif current_workspace == "📈 Deep Operational Analytics":
         render_data_quality(role)
     elif sub_page == "Settings":
         render_settings(role)
+
+else:
+    # Admin Dashboard (Workspace 3) or Operations overview
+    render_admin_dashboard(role=role, page=current_nav)
