@@ -97,7 +97,7 @@
 | **Domain-Specific FinTech Architecture** | Indian payment rails (UPI / NPCI, Cards, NetBanking), MDR fee calculation ($`\text{fee} + \text{18% GST}`$), daily settlement batches ($`\text{T+1}`$ / $`\text{T+2}`$), UTR reconciliation, and chargebacks. | `backend/app/analytics/payment_analytics.py`<br>`backend/app/models/payments.py` |
 | **Agentic AI & State Machines** | 10-node Directed Acyclic Graph (DAG) using **LangGraph**, RAG retrieval over Standard Operating Procedures (SOPs), prompt-injection guardrails, and human approval gates. | `backend/app/agent/workflow.py`<br>`backend/scripts/run_agent_eval.py` |
 | **Deterministic Financial Modeling** | Zero hallucination guarantee: Python `Decimal` and SQL aggregation handle all financial sums; LLM strictly provides root-cause explanations with citations. | `backend/app/agent/evidence.py`<br>`backend/app/services/revenue.py` |
-| **Full-Stack & UX Engineering** | Multi-tenant RBAC with 4 isolated role portals (Customer, Merchant, Admin, AI Operations) styled with Razorpay's modern Indian fintech design language. | `frontend/app.py`<br>`frontend/views/` |
+| **Full-Stack & UX Engineering** | Multi-tenant RBAC with 4 isolated role portals (Customer, Merchant, Admin, AI Operations) styled with Razorpay's modern Indian fintech design language. | `frontend/dashboard.py`<br>`frontend/views/` |
 | **System Reliability & Hardware Budget** | High-performance FastAPI backend, zero-setup dual-mode database (SQLite/PostgreSQL 16), and local Ollama inference optimized for an **8 GB RAM** budget. | `backend/main.py`<br>`Dockerfile` & `docker-compose.yml` |
 
 ---
@@ -207,7 +207,7 @@ An autonomous 10-node Directed Acyclic Graph (DAG) state machine (`backend/app/a
 
 ### Module 6 — Role-Based Workspaces & FinOps Portals
 
-Multi-tenant frontend built with Streamlit (`frontend/app.py`), organized into four isolated, role-scoped workspaces:
+Multi-tenant frontend built with Streamlit (`frontend/dashboard.py`), organized into four isolated, role-scoped workspaces:
 
 - **Workspace 1: Customer Portal** (`customer_aarav`): Scoped buyer order history, live 5-step payment resolution timeline, and verified dispute alerts.
 - **Workspace 2: Merchant Portal** (`merchant_swiggy`): Scoped business GMV, payment method mix, fulfillment hold advisories, and settlement schedules.
@@ -369,7 +369,7 @@ uvicorn backend:app --host 0.0.0.0 --port 8000 --reload
 
 **Terminal 2 — Streamlit Frontend Operations Hub:**
 ```bash
-streamlit run frontend/app.py
+streamlit run frontend/dashboard.py
 ```
 *Web Application: [http://localhost:8501](http://localhost:8501)*
 

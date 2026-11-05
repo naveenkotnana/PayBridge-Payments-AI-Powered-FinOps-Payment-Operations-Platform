@@ -18,13 +18,22 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 BACKEND_DIR = PROJECT_ROOT / "backend"
-for _p in [str(PROJECT_ROOT), str(BACKEND_DIR), str(FRONTEND_DIR)]:
+APP_DIR = BACKEND_DIR / "app"
+
+for _p in [str(BACKEND_DIR), str(PROJECT_ROOT), str(APP_DIR), str(FRONTEND_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+# Pre-bind app in sys.modules to prevent circular import or namespace shadowing
+try:
+    import backend.app as _backend_app
+    sys.modules["app"] = _backend_app
+except ImportError:
+    pass
+
 # Alias dashboard to frontend for seamless imports
 import frontend as _frontend_mod
-sys.modules.setdefault("dashboard", _frontend_mod)
+sys.modules["dashboard"] = _frontend_mod
 
 import streamlit as st
 

@@ -26,7 +26,7 @@ The repository is organized into a clean, modern modular structure:
 ├── docs/                    # Technical architecture, API specs, governance docs
 ├── frontend/                # Streamlit Operations & Intelligence Dashboard
 │   ├── views/               # Portal views (Overview, Transactions, Anomalies, FinOps)
-│   ├── app.py               # Main Streamlit application entrypoint
+│   ├── dashboard.py         # Main Streamlit application entrypoint
 │   ├── components.py        # Reusable UI widgets & API client
 │   ├── styles.py            # Custom CSS & design system
 │   └── Dockerfile           # Frontend container definition
@@ -81,7 +81,7 @@ python backend/scripts/setup_all.py
 
 - **Frontend Dashboard**:
   ```bash
-  streamlit run frontend/app.py
+  streamlit run frontend/dashboard.py
   ```
   The dashboard will open automatically at `http://localhost:8501`.
 
