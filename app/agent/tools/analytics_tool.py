@@ -100,6 +100,60 @@ def calculate_anomaly_context(db: Session, billing_month: str, location: str) ->
             "active_devices": calculate_active_devices(db, location)}
 
 
+def calculate_payment_anomaly_context(db: Session, entity: Optional[str] = None, metric: Optional[str] = None) -> dict:
+    """Deterministic payment operations intelligence metrics for root cause investigation."""
+    kpi_row = db.execute(text("""
+        SELECT
+            COUNT(*) AS total_attempts,
+            SUM(CASE WHEN status='CAPTURED' THEN 1 ELSE 0 END) AS captured,
+            SUM(CASE WHEN status='FAILED' THEN 1 ELSE 0 END) AS failed,
+            SUM(CASE WHEN status='AUTHORIZED' THEN 1 ELSE 0 END) AS authorized,
+            ROUND(SUM(CASE WHEN status='CAPTURED' THEN CAST(amount AS REAL) ELSE 0 END), 2) AS gmv_inr,
+            ROUND(SUM(CASE WHEN status='FAILED' THEN CAST(amount AS REAL) ELSE 0 END), 2) AS failed_volume_inr
+        FROM payment_transactions
+    """)).first()
+
+    total_attempts = int(kpi_row[0] or 0)
+    captured = int(kpi_row[1] or 0)
+    failed = int(kpi_row[2] or 0)
+    authorized = int(kpi_row[3] or 0)
+    gmv_inr = float(kpi_row[4] or 0.0)
+    failed_volume_inr = float(kpi_row[5] or 0.0)
+    terminals = captured + failed
+    overall_sr = round(100.0 * captured / terminals, 2) if terminals > 0 else 0.0
+
+    # Top errors
+    top_errors_rows = db.execute(text("""
+        SELECT error_code, COUNT(*) AS cnt, ROUND(SUM(CAST(amount AS REAL)), 2) AS vol
+        FROM payment_transactions
+        WHERE status='FAILED' AND error_code IS NOT NULL
+        GROUP BY error_code ORDER BY cnt DESC LIMIT 5
+    """)).all()
+    top_errors = [{"error_code": r[0], "count": int(r[1]), "volume_inr": float(r[2] or 0.0)} for r in top_errors_rows]
+
+    # Retryable financial exposure
+    retryable_exposure = db.execute(text("""
+        SELECT ROUND(SUM(CAST(amount AS REAL)), 2)
+        FROM payment_transactions
+        WHERE status='FAILED'
+          AND error_code IN ('BAD_REQUEST_GATEWAY_DOWN', 'GATEWAY_TIMEOUT', 'NETWORK_ERROR', 'BANK_DEBITED_PAYMENT_PENDING')
+    """)).scalar()
+
+    return {
+        "entity": entity or "GLOBAL_PAYMENTS",
+        "metric": metric or "payment_success_rate",
+        "total_attempts": total_attempts,
+        "captured_attempts": captured,
+        "failed_attempts": failed,
+        "authorized_pending_capture": authorized,
+        "success_rate_pct": overall_sr,
+        "gmv_inr": gmv_inr,
+        "failed_volume_inr": failed_volume_inr,
+        "retryable_exposure_inr": float(retryable_exposure or 0.0),
+        "top_errors": top_errors
+    }
+
+
 TOOL_REGISTRY = {
     "calculate_revenue": calculate_revenue,
     "calculate_active_devices": calculate_active_devices,
@@ -107,4 +161,5 @@ TOOL_REGISTRY = {
     "calculate_plan_revenue": calculate_plan_revenue,
     "calculate_location_revenue": calculate_location_revenue,
     "calculate_anomaly_context": calculate_anomaly_context,
+    "calculate_payment_anomaly_context": calculate_payment_anomaly_context,
 }

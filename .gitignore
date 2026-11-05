@@ -10,3 +10,5 @@ venv/
 *.egg-info/
 .coverage
 htmlcov/
+data/rejected/*.csv
+data/raw/ingestion_archive/*.csv

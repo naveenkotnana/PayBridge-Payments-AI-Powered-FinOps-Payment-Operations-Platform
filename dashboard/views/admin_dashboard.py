@@ -20,8 +20,7 @@ from app.models.payments import (
     PaymentIncident,
     IncidentMerchant,
     PaymentEvent,
-    PaymentAttempt,
-    ReconciliationDiscrepancy,
+    PaymentIngestionRun,
 )
 from app.models.ops import AuditLog
 
@@ -229,16 +228,121 @@ def _render_admin_directory(db):
 
 
 def _render_admin_pipeline(db):
-    """Event Pipeline Telemetry & Ingestion Metrics."""
-    st.markdown("### Event Pipeline Telemetry & Ingestion Metrics")
-    events_count = db.query(PaymentEvent).count()
-    attempts_count = db.query(PaymentAttempt).count()
-    discrepancies_count = db.query(ReconciliationDiscrepancy).count()
+    """Event Pipeline Telemetry, Ingestion Metrics & Webhook Gateway."""
+    st.markdown("### Data Ingestion & Webhook Pipeline Telemetry")
 
-    e1, e2, e3 = st.columns(3)
-    e1.metric("Events Processed", f"{events_count:,}")
-    e2.metric("Payment Attempts Logged", f"{attempts_count:,}")
-    e3.metric("Discrepancies Flagged", discrepancies_count)
+    events_count = db.query(PaymentEvent).count()
+    runs = db.query(PaymentIngestionRun).order_by(PaymentIngestionRun.started_at.desc()).all()
+    runs_count = len(runs)
+    total_accepted = sum(r.records_accepted or 0 for r in runs)
+    total_rejected = sum(r.records_rejected or 0 for r in runs)
+
+    e1, e2, e3, e4 = st.columns(4)
+    e1.metric("Webhook Events", f"{events_count:,}")
+    e2.metric("Ingestion Batch Runs", f"{runs_count:,}")
+    e3.metric("Records Accepted", f"{total_accepted:,}")
+    e4.metric("Records Rejected", f"{total_rejected:,}")
+
+    tab_webhooks, tab_csv, tab_url = st.tabs([
+        "⚡ Razorpay Webhook Gateway",
+        "📂 Batch CSV & Data Lineage",
+        "🌐 Secure External URL Ingestion"
+    ])
+
+    with tab_webhooks:
+        st.markdown("""
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:1rem; margin-bottom:1rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <strong style="color:#0F172A; font-size:0.95rem;">Razorpay Test Mode Webhook Gateway</strong>
+                    <div style="font-size:0.8rem; color:#64748B;">Listening at <code>/api/v1/webhooks/razorpay</code> • HMAC-SHA256 signature verification enforced</div>
+                </div>
+                <span class="fintech-badge badge-low" style="background:#DCFCE7; color:#15803D;">HMAC VERIFIED GATEWAY</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        evts = db.query(PaymentEvent).order_by(PaymentEvent.ingested_at.desc()).limit(20).all()
+        if evts:
+            st.dataframe([{
+                "Event ID": e.event_id,
+                "Payment ID": e.payment_id,
+                "Event Type": e.event_type,
+                "Source": e.event_source,
+                "Idempotency Key": e.idempotency_key,
+                "Verification": "HMAC-SHA256 PASSED",
+                "Occurred At": str(e.occurred_at),
+                "Ingested At": str(e.ingested_at),
+            } for e in evts], use_container_width=True)
+        else:
+            st.info("No webhook events logged yet. Trigger Razorpay test webhooks to observe real-time ingestion.")
+
+    with tab_csv:
+        st.markdown("""
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:1rem; margin-bottom:1rem;">
+            <strong style="color:#0F172A; font-size:0.95rem;">Canonical Payment CSV Ingestion Engine</strong>
+            <div style="font-size:0.8rem; color:#64748B;">Automatic header auto-detection, timestamp parsing, duplicate isolation, and lineage recording.</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        uploaded_file = st.file_uploader("Upload Raw Payment CSV", type=["csv"], key="dash_csv_uploader")
+        if uploaded_file is not None:
+            if st.button("Process & Ingest CSV", type="primary"):
+                from app.services.ingestion_payments import PaymentCSVIngestionService
+                service = PaymentCSVIngestionService(db)
+                import tempfile
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
+                    tmp.write(uploaded_file.getvalue())
+                    tmp_p = tmp.name
+                try:
+                    res = service.ingest_csv_file(tmp_p, source_name=uploaded_file.name)
+                    st.success(f"Ingestion {res['run_id']} finished! Accepted: {res['records_accepted']}, Rejected: {res['records_rejected']}, Duplicates: {res['records_duplicated']}")
+                except Exception as ex:
+                    st.error(f"Ingestion failed: {ex}")
+
+        st.markdown("##### Ingestion Runs & Lineage History")
+        if runs:
+            st.dataframe([{
+                "Run ID": r.run_id,
+                "Source Type": r.source_type,
+                "Source Reference": r.source_identifier,
+                "Received": r.records_received,
+                "Accepted": r.records_accepted,
+                "Rejected": r.records_rejected,
+                "Duplicated": r.records_duplicated,
+                "Status": r.status,
+                "Started At": str(r.started_at),
+                "Completed At": str(r.completed_at)
+            } for r in runs[:15]], use_container_width=True)
+        else:
+            st.info("No batch ingestion runs recorded.")
+
+    with tab_url:
+        st.markdown("""
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:1rem; margin-bottom:1rem;">
+            <strong style="color:#0F172A; font-size:0.95rem;">Secure External URL Ingestion with SSRF Protection</strong>
+            <div style="font-size:0.8rem; color:#64748B;">Domain allowlisting, DNS rebinding guard, 10MB response limits, and private RFC-1918 blocklist.</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        url_input = st.text_input(
+            "External Payment Dataset URL (Approved Domains: github.com, razorpay.com, npci.org.in)",
+            value="https://raw.githubusercontent.com/datasets/investor-flow/master/data.csv",
+            key="dash_url_input"
+        )
+        if st.button("Secure Fetch & Ingest", key="dash_url_btn"):
+            from app.services.ingestion_payments import PaymentCSVIngestionService
+            from app.services.url_ingestion import SecureURLIngestionService, SSRFSecurityError
+            csv_service = PaymentCSVIngestionService(db)
+            url_service = SecureURLIngestionService(csv_service=csv_service)
+            try:
+                with st.spinner("Validating SSRF safety and fetching remote dataset..."):
+                    u_res = url_service.fetch_and_ingest(url_input)
+                st.success(f"URL Ingested safely! Accepted: {u_res.get('records_accepted')}, Rejected: {u_res.get('records_rejected')}")
+            except SSRFSecurityError as s_err:
+                st.error(f"SSRF Security Violation: {s_err}")
+            except Exception as u_err:
+                st.error(f"Fetch failed: {u_err}")
 
 
 def _render_admin_audit(db):

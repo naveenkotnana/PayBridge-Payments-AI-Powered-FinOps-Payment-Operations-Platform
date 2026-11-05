@@ -1,0 +1,9 @@
+txn_id,order_reference,merchant_id,customer_id,txn_amount,currency,pay_mode,bank_code,gateway_name,txn_status,error_code,timestamp
+pay_demo_001,order_demo_101,mid_swiggy_01,cust_sw_aarav,1450.00,INR,UPI,HDFC,RAZORPAY,CAPTURED,,2026-11-04 12:30:00
+pay_demo_002,order_demo_102,mid_zomato_02,cust_002,2800.50,INR,CARD,ICICI,RAZORPAY,CAPTURED,,2026-11-04 12:32:15
+pay_demo_003,order_demo_103,mid_zepto_06,cust_003,890.00,INR,UPI,SBI,RAZORPAY,FAILED,GATEWAY_TIMEOUT,2026-11-04 12:35:00
+pay_demo_004,order_demo_104,mid_cred_05,cust_004,15200.00,INR,NETBANKING,AXIS,RAZORPAY,CAPTURED,,2026-11-04 12:38:40
+pay_demo_005,order_demo_105,mid_blinkit_07,cust_005,620.00,INR,UPI,SBI,RAZORPAY,FAILED,BAD_REQUEST_GATEWAY_DOWN,2026-11-04 12:41:10
+pay_demo_006,order_demo_106,mid_flipkart_03,cust_006,-450.00,INR,UPI,HDFC,RAZORPAY,CAPTURED,,2026-11-04 12:45:00
+pay_demo_007,order_demo_107,mid_nykaa_08,cust_007,3100.00,USD,CARD,CITI,RAZORPAY,CAPTURED,,2026-11-04 12:48:22
+pay_demo_001,order_demo_101,mid_swiggy_01,cust_sw_aarav,1450.00,INR,UPI,HDFC,RAZORPAY,CAPTURED,,2026-11-04 12:30:00

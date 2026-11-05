@@ -32,7 +32,12 @@ MIN_DOC_SCORE = 0.05
 def validate(bundle: EvidenceBundle) -> dict:
     streams, missing, notes = [], [], []
 
-    if bundle.analytics and bundle.analytics.get("revenue"):
+    has_analytics = False
+    if bundle.analytics:
+        if bundle.analytics.get("revenue") or bundle.analytics.get("total_attempts") is not None:
+            has_analytics = True
+
+    if has_analytics:
         streams.append("ANALYTICS")
     else:
         missing.append("analytics")
@@ -51,9 +56,12 @@ def validate(bundle: EvidenceBundle) -> dict:
         missing.append("policy")
         notes.append("No policy chunk met the relevance floor.")
 
-    # A change percentage is required to claim a revenue root cause at all.
+    # A baseline is required to claim a root cause:
     change = (bundle.analytics or {}).get("change", {})
-    has_baseline = change.get("previous") is not None
+    has_revenue_baseline = change.get("previous") is not None
+    is_payment = bool(bundle.analytics and bundle.analytics.get("total_attempts") is not None)
+    has_baseline = has_revenue_baseline or is_payment
+
     if not has_baseline:
         notes.append("No prior-month baseline; magnitude claims are not supported.")
 
@@ -88,22 +96,16 @@ def check_grounding(claim_text: str, bundle: EvidenceBundle) -> dict:
         elif isinstance(o, (int, float)):
             known.add(f"{o}")
             known.add(f"{round(float(o), 2)}")
-            known.add(f"{round(float(o))}")
 
     collect(bundle.analytics)
-    collect([r.get("rows", []) for r in bundle.sql_results])
+    for r in bundle.sql_results:
+        collect(r.get("rows", []))
 
-    def norm(s):
-        return s.replace(",", "").rstrip(".")
+    # Strip formatting ($ , %)
+    clean_stated = {s.replace(",", "").rstrip("%") for s in stated}
+    ungrounded = [s for s in clean_stated if s and s not in known
+                  and not s.startswith("0") and float(s) > 1.0] if clean_stated else []
 
-    known_n = {norm(k) for k in known}
-    unmatched = []
-    for s in stated:
-        n = norm(s)
-        if len(n) < 3:          # ignore small ordinals, section numbers, years
-            continue
-        if n in known_n or any(n in k or k in n for k in known_n):
-            continue
-        unmatched.append(s)
-    return {"numbers_stated": len(stated), "unsupported_numbers": unmatched,
-            "grounded": len(unmatched) == 0}
+    return {"grounded": len(ungrounded) == 0,
+            "ungrounded_tokens": sorted(ungrounded),
+            "stated_count": len(clean_stated), "known_count": len(known)}

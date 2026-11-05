@@ -1,0 +1,37 @@
+TITLE: UPI Bank Switch Degradation and Auto-Reroute SOP
+DOCUMENT_ID: SOP-001
+DOCUMENT_TYPE: SOP
+VERSION: 1.0
+EFFECTIVE_DATE: 2026-01-15
+DEPARTMENT: Payment Operations
+ACCESS_LEVEL: INTERNAL
+CLASSIFICATION: SYNTHETIC
+
+1. SCOPE AND OBJECTIVE
+This standard operating procedure defines the detection thresholds, automated mitigation,
+and triage escalation for UPI bank switch degradations across partner banks (HDFC, ICICI,
+SBI, AXIS, KOTAK) and payment gateways (Razorpay, Cashfree, PayU).
+
+2. SEVERITY THRESHOLDS
+- CRITICAL: Success rate (SR) drop >= 30 percentage points below rolling 24-hour baseline,
+  or switch latency exceeds 5,000ms for 3 consecutive 5-minute sampling windows, or total
+  blocked transaction volume exceeds INR 500,000.
+- HIGH: SR drop between 20 and 29 percentage points, or switch latency between 3,000ms and
+  4,999ms, or repeated BAD_REQUEST_GATEWAY_DOWN errors affecting >= 3 enterprise merchants.
+- MEDIUM: SR drop between 10 and 19 percentage points, or switch latency between 2,000ms
+  and 2,999ms.
+- LOW / INFO: Minor jitter with SR drop < 10 percentage points and latency < 2,000ms.
+
+3. IMMEDIATE OPERATIONAL MITIGATION (DYNAMIC ROUTING)
+When a bank switch shows sustained failure rates exceeding 25% or gateway timeout errors:
+- Step 1: Temporarily downgrade traffic allocation to the degraded banking switch by 80%.
+- Step 2: Route eligible UPI Intent and Collect requests through alternate bank handles
+  or secondary gateway rails.
+- Step 3: Trigger active health probes every 60 seconds with synthetic micro-transactions.
+- Step 4: Re-route traffic incrementally (20% -> 50% -> 100%) only after 15 consecutive
+  minutes of stable success rate >= 92%.
+
+4. MERCHANT NOTIFICATION & DOWNTIME BANNER
+- For HIGH and CRITICAL switch degradations lasting > 5 minutes, post real-time status page
+  advisories to affected merchants via the dashboard and webhook push notifications.
+- Inform merchant support teams to suppress user checkout retries for the degraded bank.

@@ -6,7 +6,7 @@ from pathlib import Path
 import time
 from typing import List, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, HTTPException, Query, status, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -26,11 +26,12 @@ from app.rag import ollama_client
 from app.rag.store import get_store
 from app.schemas.api import (AlertOut, ApprovalDecision, HealthOut,
                              IncidentCreate, InvestigateResponse, LoginRequest, Token,
-                             SimulationGenerateRequest, SimulationAugmentRequest)
+                             SimulationGenerateRequest, SimulationAugmentRequest, URLIngestionRequest)
 from app.services.data_availability import inspect_data_availability
 from app.services.data_generator import PaymentDataGenerator, SCENARIOS
 from app.services.data_quality import run_data_quality_audit
 from app.analytics.payment_analytics import PaymentAnalyticsEngine
+from app.api.webhooks import router as webhooks_router
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 setup_logging()
@@ -56,6 +57,7 @@ app = FastAPI(
                 "No paid LLM APIs are used.")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                    allow_headers=["*"])
+app.include_router(webhooks_router)
 
 _METRICS = {"requests": 0, "errors": 0, "latency_ms_total": 0}
 
@@ -421,3 +423,80 @@ def payment_dashboard(days_back: int = Query(7, ge=0, le=90), db: Session = Depe
     engine = PaymentAnalyticsEngine(db, days_back=days_back)
     return engine.get_full_dashboard()
 
+
+
+# -------------------------------------------------------------- ingestion & webhooks
+@app.post("/api/v1/ingestion/url", tags=["ingestion"])
+def ingest_from_url_endpoint(req: URLIngestionRequest, db: Session = Depends(get_db), user=Depends(require("configure"))):
+    """Securely fetch and ingest payment records from external URL with SSRF protection."""
+    from app.services.ingestion_payments import PaymentCSVIngestionService
+    from app.services.url_ingestion import SecureURLIngestionService, SSRFSecurityError
+    csv_service = PaymentCSVIngestionService(db)
+    service = SecureURLIngestionService(csv_service=csv_service)
+    try:
+        return service.fetch_and_ingest(url=req.url)
+    except SSRFSecurityError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/v1/ingestion/csv", tags=["ingestion"])
+async def ingest_csv_endpoint(file: UploadFile = File(...), db: Session = Depends(get_db), user=Depends(require("configure"))):
+    """Ingest payment transactions from raw CSV file with canonical schema mapping."""
+    import os
+    import tempfile
+    from app.services.ingestion_payments import PaymentCSVIngestionService
+
+    suffix = Path(file.filename).suffix or ".csv"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        content = await file.read()
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        service = PaymentCSVIngestionService(db)
+        return service.ingest_csv_file(file_path_or_buffer=tmp_path, source_name=file.filename)
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
+@app.get("/api/v1/ingestion/runs", tags=["ingestion"])
+def get_ingestion_runs(limit: int = Query(20, ge=1, le=100), db: Session = Depends(get_db), user=Depends(require("view"))):
+    """Retrieve historical payment ingestion runs and lineage statistics."""
+    from app.models.payments import PaymentIngestionRun
+    runs = db.query(PaymentIngestionRun).order_by(PaymentIngestionRun.started_at.desc()).limit(limit).all()
+    return [
+        {
+            "run_id": r.run_id,
+            "source_type": r.source_type,
+            "source_identifier": r.source_identifier,
+            "records_received": r.records_received,
+            "records_accepted": r.records_accepted,
+            "records_rejected": r.records_rejected,
+            "records_duplicated": r.records_duplicated,
+            "status": r.status,
+            "rejected_file_path": r.rejected_file_path,
+            "started_at": r.started_at.isoformat() if r.started_at else None,
+            "completed_at": r.completed_at.isoformat() if r.completed_at else None
+        }
+        for r in runs
+    ]
+
+
+@app.get("/api/v1/webhooks/events", tags=["webhooks"])
+def get_webhook_events(limit: int = Query(50, ge=1, le=200), db: Session = Depends(get_db), user=Depends(require("view"))):
+    """Retrieve recent immutable payment events received via webhook gateway."""
+    from app.models.payments import PaymentEvent
+    evts = db.query(PaymentEvent).order_by(PaymentEvent.ingested_at.desc()).limit(limit).all()
+    return [
+        {
+            "event_id": e.event_id,
+            "payment_id": e.payment_id,
+            "event_type": e.event_type,
+            "event_source": e.event_source,
+            "occurred_at": e.occurred_at.isoformat() if e.occurred_at else None,
+            "ingested_at": e.ingested_at.isoformat() if e.ingested_at else None,
+            "idempotency_key": e.idempotency_key
+        }
+        for e in evts
+    ]

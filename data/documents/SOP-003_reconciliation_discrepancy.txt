@@ -1,0 +1,27 @@
+TITLE: Payment Reconciliation & Settlement Discrepancy SOP
+DOCUMENT_ID: SOP-003
+DOCUMENT_TYPE: SOP
+VERSION: 1.0
+EFFECTIVE_DATE: 2026-02-15
+DEPARTMENT: Financial Operations
+ACCESS_LEVEL: INTERNAL
+CLASSIFICATION: SYNTHETIC
+
+1. OVERVIEW
+This procedure defines operational workflows for detecting, triaging, and resolving
+discrepancies between captured transactions, merchant settlements, and bank MIS files.
+
+2. DISCREPANCY TYPES AND THRESHOLDS
+- MDR_MISMATCH: Merchant Discount Rate fee charged exceeds contracted pricing schedule
+  by >= INR 1.00. Action: Auto-flag for finance operations review; generate credit adjustment.
+- UNCAPTURED_AUTH: Payment authorized at bank switch but not captured within 5 business days.
+  Action: Auto-expire authorization and release customer bank hold.
+- MISSING_GATEWAY_SETTLEMENT: Transaction marked CAPTURED on gateway but absent in nodal
+  settlement batch file. Action: Quarantine settlement run and query gateway settlement API.
+- DUPLICATE_DEBIT: Customer charged twice for single order_id. Action: Instant automated
+  refund initiated on secondary payment_id with speed=INSTANT.
+
+3. ESCALATION MATRIX
+- Variances > INR 50,000 or delayed settlements > T+2 days require tier-2 escalation to
+  Finance Controller and Merchant Account Lead within 2 hours.
+- Generate automated reconciliation adjustment entry in PostgreSQL ledger with audit trail.

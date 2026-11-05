@@ -317,3 +317,38 @@ class GatewayHealthMetric(Base):
     success_rate = Column(Numeric(5, 2), nullable=False)  # e.g., 98.50
     avg_latency_ms = Column(Integer, default=0)
     status = Column(String(20), index=True, default="HEALTHY")  # HEALTHY, DEGRADED, DOWN
+
+
+class PaymentIngestionRun(Base):
+    """Tracks payment batch CSV, external URLs, and webhook data ingestion runs with full lineage."""
+
+    __tablename__ = "payment_ingestion_runs"
+
+    run_id = Column(String(50), primary_key=True)  # RUN-YYYYMMDD-UUID
+    source_type = Column(String(30), nullable=False)  # CSV_IMPORT, URL_IMPORT, RAZORPAY_WEBHOOK
+    source_identifier = Column(String(255), nullable=False)  # file name or URL
+    status = Column(String(20), nullable=False, default="PROCESSING")  # PROCESSING, COMPLETED, FAILED
+    records_received = Column(Integer, default=0)
+    records_accepted = Column(Integer, default=0)
+    records_rejected = Column(Integer, default=0)
+    records_duplicated = Column(Integer, default=0)
+    raw_file_path = Column(String(255), nullable=True)
+    rejected_file_path = Column(String(255), nullable=True)
+    error_summary = Column(Text, nullable=True)
+    started_at = Column(DateTime, server_default=func.now(), index=True)
+    completed_at = Column(DateTime, nullable=True)
+
+
+class PaymentIngestionRecord(Base):
+    """Audit record for individual rejected rows during payment ingestion."""
+
+    __tablename__ = "payment_ingestion_records"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    run_id = Column(String(50), ForeignKey("payment_ingestion_runs.run_id"), index=True, nullable=False)
+    row_number = Column(Integer, nullable=False)
+    raw_data = Column(Text, nullable=False)  # JSON representation of input row
+    rejection_reason = Column(String(255), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+

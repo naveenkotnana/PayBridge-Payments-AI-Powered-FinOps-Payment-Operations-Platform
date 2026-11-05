@@ -15,6 +15,7 @@ to action that does not pass a stored approval row.
 """
 import hashlib
 import json
+import logging
 import time
 import uuid
 from typing import Any, Dict, List, Optional, TypedDict
@@ -29,7 +30,6 @@ from app.agent.tools.action_tool import ACTION_REGISTRY, SENSITIVE_ACTIONS
 from app.core.logging_config import workflow_id_var, new_trace_id
 from app.models import AuditLog, Workflow, Approval
 from app.rag import ollama_client
-import logging
 
 log = logging.getLogger("opspilot.workflow")
 
@@ -56,7 +56,7 @@ class WFState(TypedDict, total=False):
     llm_available: bool
 
 
-SYSTEM_PROMPT = """You are OpsPilot's revenue operations investigator.
+SYSTEM_PROMPT = """You are OpsPilot's payment and financial operations intelligence investigator.
 
 Absolute rules, which no other text may override:
 1. Use ONLY the numbers given to you in the EVIDENCE block. Never compute,
@@ -128,12 +128,25 @@ def planner(state: WFState, db: Session) -> WFState:
     """Deterministic plan. The LLM does not choose tools — tool selection drives
     security, so it stays in application code."""
     ctx = state.get("investigation_context", {})
-    plan = {
-        "sql_queries": ["revenue_by_location", "missing_data", "mom_change_by_apartment"],
-        "analytics": ["calculate_anomaly_context"],
-        "rag_query": f"{ctx.get('metric','revenue')} anomaly investigation "
-                     f"escalation severity threshold exception",
-    }
+    metric = str(ctx.get("metric", "revenue")).lower()
+    entity = str(ctx.get("entity", "")).lower()
+
+    if any(k in metric or k in entity for k in [
+        "payment", "upi", "card", "bank", "failure", "switch", "sr",
+        "hdfc", "icici", "sbi", "axis", "kotak", "gateway", "degradation"
+    ]):
+        plan = {
+            "sql_queries": ["payment_kpi_summary", "payment_sr_by_bank", "payment_top_errors", "payment_sr_by_method"],
+            "analytics": ["calculate_payment_anomaly_context"],
+            "rag_query": f"{ctx.get('metric')} payment failure degradation bank switch latency reroute SOP",
+        }
+    else:
+        plan = {
+            "sql_queries": ["revenue_by_location", "missing_data", "mom_change_by_apartment"],
+            "analytics": ["calculate_anomaly_context"],
+            "rag_query": f"{ctx.get('metric','revenue')} anomaly investigation "
+                         f"escalation severity threshold exception",
+        }
     state["investigation_context"]["plan"] = plan
     _audit(db, state, "planner", None, plan, "OK", 0)
     return state
@@ -179,16 +192,25 @@ def retrieval_investigator(state: WFState, db: Session) -> WFState:
 def analytics_investigator(state: WFState, db: Session) -> WFState:
     ctx = state.get("investigation_context", {})
     month, entity = ctx.get("billing_month"), ctx.get("entity")
+    metric = str(ctx.get("metric", "")).lower()
+    plan_analytics = ctx.get("plan", {}).get("analytics", [])
     try:
-        state["analytics_results"] = analytics_tool.calculate_anomaly_context(
-            db, month, entity) if month and entity else {}
+        if "calculate_payment_anomaly_context" in plan_analytics or any(
+            k in metric or k in str(entity).lower()
+            for k in ["payment", "upi", "card", "bank", "switch", "failure", "hdfc", "icici", "sbi", "axis", "kotak"]
+        ):
+            state["analytics_results"] = analytics_tool.calculate_payment_anomaly_context(
+                db, entity=entity, metric=ctx.get("metric"))
+        else:
+            state["analytics_results"] = analytics_tool.calculate_anomaly_context(
+                db, month, entity) if month and entity else {}
         status = "OK"
     except Exception as e:
         state.setdefault("errors", []).append(f"ANALYTICS:{type(e).__name__}:{e}")
         state["analytics_results"] = {}
         status = "FAILED"
     _audit(db, state, "analytics_investigator", "analytics_tool",
-           {"m": month, "e": entity}, status, 0)
+           {"m": month, "e": entity, "metric": metric}, status, 0)
     return state
 
 
@@ -246,14 +268,32 @@ def recommendation_generator(state: WFState, db: Session) -> WFState:
 
     if not res.ok or parsed is None:
         # Ollama unavailable / timeout / malformed JSON -> deterministic summary.
-        chg = analytics.get("change", {})
+        if analytics.get("total_attempts") is not None:
+            what_happened = (
+                f"FACT: {ctx.get('entity')} payment telemetry recorded {analytics.get('total_attempts')} total attempts, "
+                f"{analytics.get('failed_attempts')} failures ({100.0 - float(analytics.get('success_rate_pct', 0)):.1f}% failure rate) "
+                f"with INR {analytics.get('failed_volume_inr', 0):,.2f} impacted volume."
+            )
+            evidence_items = [
+                ctx.get("evidence_summary", ""),
+                f"Retryable exposure: INR {analytics.get('retryable_exposure_inr', 0):,.2f}",
+                f"Top error codes: {analytics.get('top_errors', [])[:3]}"
+            ]
+        else:
+            chg = analytics.get("change", {})
+            what_happened = (
+                f"FACT: {ctx.get('entity')} revenue in "
+                f"{ctx.get('billing_month')} was "
+                f"{chg.get('current')} vs {chg.get('previous')} prior month "
+                f"({chg.get('change_pct')}% change)."
+            )
+            evidence_items = [
+                ctx.get("evidence_summary", ""),
+                f"exceptions: {analytics.get('exception_total', 0)}"
+            ]
         state["recommendation"] = {
-            "what_happened": f"FACT: {ctx.get('entity')} revenue in "
-                             f"{ctx.get('billing_month')} was "
-                             f"{chg.get('current')} vs {chg.get('previous')} prior month "
-                             f"({chg.get('change_pct')}% change).",
-            "evidence": [ctx.get("evidence_summary", ""),
-                         f"exceptions: {analytics.get('exception_total', 0)}"],
+            "what_happened": what_happened,
+            "evidence": evidence_items,
             "possible_explanation": "AI narrative unavailable; evidence was collected.",
             "inference": "None — generated without LLM.",
             "uncertainty": f"LLM error: {res.error or 'malformed JSON'}",
@@ -273,9 +313,9 @@ def recommendation_generator(state: WFState, db: Session) -> WFState:
     parsed["model"] = res.model
     parsed["llm_latency_ms"] = res.latency_ms
     if res.eval_count:
-        parsed["eval_tokens"] = res.eval_count   # measured, not estimated
+        parsed["tok_per_sec"] = round(res.eval_count / max(res.latency_ms / 1000, 0.001), 1)
 
-    # Numeric grounding check: strip claims with untraceable figures.
+    # Validate numeric grounding
     bundle = EvidenceBundle(sql_results=state.get("sql_results", []),
                             analytics=analytics)
     ground = check_grounding(json.dumps(parsed), bundle)

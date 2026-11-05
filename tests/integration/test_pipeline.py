@@ -63,9 +63,9 @@ def test_alerts_only_medium_and_above(db):
 
 def test_rag_store_builds(db):
     s = get_store().stats()
-    assert s["documents"] == 5 and s["chunks"] > 20
+    assert s["documents"] >= 5 and s["chunks"] > 20
 
 
 def test_rag_returns_citations(db):
     hits = get_store().search("how is rental revenue prorated", k=3)
-    assert hits and all(h["citation"].startswith("[DOC-") for h in hits)
+    assert hits and all(h["citation"].startswith("[DOC-") or h["citation"].startswith("[SOP-") for h in hits)

@@ -1,0 +1,27 @@
+TITLE: Fulfillment Hold Policy for Pending Bank Debits
+DOCUMENT_ID: SOP-002
+DOCUMENT_TYPE: POLICY
+VERSION: 1.0
+EFFECTIVE_DATE: 2026-02-01
+DEPARTMENT: Payment Operations
+ACCESS_LEVEL: INTERNAL
+CLASSIFICATION: SYNTHETIC
+
+1. PURPOSE AND APPLICABILITY
+This policy governs merchant order fulfillment and inventory release during asynchronous
+payment states, specifically when customers report money debited from bank accounts
+while gateway status indicates PENDING or AUTHORIZED.
+
+2. SUSPEND FULFILLMENT ON PENDING DEBITS
+- If a transaction is in BANK_DEBITED_PAYMENT_PENDING state, the merchant MUST place
+  goods dispatch or digital entitlement on a temporary 30-minute hold.
+- Under no circumstances should the merchant auto-cancel the order or ask the customer
+  to retry the payment immediately, as this leads to duplicate customer debits.
+
+3. WEBHOOK AND POLLING SYNCHRONIZATION
+- Payment gateway status reconciliation operates asynchronously. The webhook gateway
+  attempts real-time delivery with exponential backoff retries over a 4-hour window.
+- The platform queries NPCI / Bank Switch status every 5 minutes for pending transactions.
+- Once the webhook receives payment.captured, release fulfillment automatically.
+- If final status is payment.failed or terminal after 24 hours, trigger auto-refund or
+  release inventory with clear merchant dashboard notification.

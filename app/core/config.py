@@ -30,6 +30,9 @@ class Settings:
     JWT_ALG: str = "HS256"
     JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "120"))
 
+    # --- Razorpay Webhook Integration -----------------------------------
+    RAZORPAY_WEBHOOK_SECRET: str = os.getenv("RAZORPAY_WEBHOOK_SECRET", "test_secret_opspilot_2026")
+
     # --- SQL tool guardrails --------------------------------------------
     SQL_ROW_LIMIT: int = int(os.getenv("SQL_ROW_LIMIT", "200"))
     SQL_TIMEOUT_S: int = int(os.getenv("SQL_TIMEOUT_S", "10"))

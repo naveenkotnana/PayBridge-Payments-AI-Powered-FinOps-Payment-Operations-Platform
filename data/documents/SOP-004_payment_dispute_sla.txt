@@ -1,0 +1,22 @@
+TITLE: Payment Dispute & Chargeback SLA Management Policy
+DOCUMENT_ID: SOP-004
+DOCUMENT_TYPE: POLICY
+VERSION: 1.0
+EFFECTIVE_DATE: 2026-03-01
+DEPARTMENT: Risk & Compliance
+ACCESS_LEVEL: INTERNAL
+CLASSIFICATION: SYNTHETIC
+
+1. PURPOSE
+Defines time-bound actions required when card networks or acquiring banks initiate
+dispute notifications (retrieval requests, chargebacks, pre-arbitration).
+
+2. DISPUTE PHASES AND MERCHANT SLAS
+- INQUIRY: Merchant has 7 calendar days to upload proof of delivery or invoice.
+- CHARGEBACK: Formal dispute by cardholder. Merchant must provide proof within 5 days.
+- PRE-ARBITRATION: Second-level review requiring compliance officer authorization.
+
+3. AUTO-RESERVATION AND REFUND RULES
+- If a dispute is raised with reason FRAUDULENT and merchant dispute rate exceeds 1.0%
+  of GMV, temporarily reserve 100% of disputed amount from the next settlement cycle.
+- If merchant fails to respond within SLA, accept liability and debit reserve.

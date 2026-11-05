@@ -16,7 +16,7 @@
   <img src="https://img.shields.io/badge/PostgreSQL-16%20%2F%20SQLite-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/LangGraph-10_Node_DAG-FF6F00?style=for-the-badge" alt="LangGraph" />
   <img src="https://img.shields.io/badge/Local_LLM-Ollama_Qwen2.5-000000?style=for-the-badge" alt="Ollama" />
-  <img src="https://img.shields.io/badge/Tests-71%20PASSED%20%7C%20100%25-brightgreen?style=for-the-badge" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-88%20PASSED%20%7C%20100%25-brightgreen?style=for-the-badge" alt="Tests" />
   <img src="https://img.shields.io/badge/Code_Style-Ruff_0_Errors-blueviolet?style=for-the-badge" alt="Ruff" />
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License" />
 </p>
@@ -38,12 +38,13 @@
 
 In modern digital economies, payment aggregators handle billions of rupees across heterogeneous issuing bank switches (SBI, HDFC, ICICI, Axis, Kotak) and payment rails (UPI, Credit/Debit Cards, Net Banking, Wallets). When an issuing bank switch degrades, even a **1.5% drop in success rate** translates to tens of lakhs in failed transactions, merchant panic, customer double-debit confusion, and erroneous order fulfillment holds.
 
-**Razorpay-Inspired AI Payments** bridges the gap between raw database transactions and operational financial intelligence:
+**OpsPilot Payments** bridges the gap between raw database transactions and operational financial intelligence:
 1. **Real-Time Bank Switch Telemetry**: Distinguishes upstream Core Banking switch timeouts from gateway aggregator drops and customer drop-offs.
-2. **Order Fulfillment Advisories**: Real-time webhook guards advising merchants to hold fulfillment for pending payments until final bank verification is established.
-3. **Deterministic Math & Zero Financial Hallucination**: Generative LLMs **never** perform financial calculations. All fee structures, MDRs, GST taxes, net payouts, and blast radiuses execute strictly via SQL window functions and Python `Decimal(ROUND_HALF_UP)`.
-4. **Sandboxed AI Investigation Copilot**: A 10-node **LangGraph state machine** inspects allowlisted SQL queries, cross-references Standard Operating Procedures (SOPs), calculates exposure, and stops at an explicit human approval gate before triggering high-impact operational mitigations.
-5. **Real-World Enterprise Scale**: Pre-seeded with 10 premier Indian digital commerce brands (**Swiggy**, **Zomato**, **Zepto**, **CRED**, **Blinkit**, **Flipkart**, **BookMyShow**, **Nykaa**, **MakeMyTrip**, **Tata Neu**) and 600+ authentic customer profiles.
+2. **Event-Driven Ingestion Engine**: Accepts multi-format CSV files with canonical column mapping, Razorpay Test Mode webhooks with HMAC-SHA256 verification, and external URLs with SSRF protection.
+3. **Order Fulfillment Advisories**: Real-time webhook guards advising merchants to hold fulfillment for pending payments until final bank verification is established.
+4. **Deterministic Math & Zero Financial Hallucination**: Generative LLMs **never** perform financial calculations. All fee structures, MDRs, GST taxes, net payouts, and blast radiuses execute strictly via SQL window functions and Python `Decimal(ROUND_HALF_UP)`.
+5. **Sandboxed AI Investigation Copilot**: A 10-node **LangGraph state machine** inspects allowlisted SQL queries, cross-references Payment Standard Operating Procedures (SOPs), calculates exposure, and stops at an explicit human approval gate before triggering high-impact operational mitigations.
+6. **Real-World Enterprise Scale**: Pre-seeded with 10 premier Indian digital commerce brands (**Swiggy**, **Zomato**, **Zepto**, **CRED**, **Blinkit**, **Flipkart**, **BookMyShow**, **Nykaa**, **MakeMyTrip**, **Tata Neu**) and 600+ authentic customer profiles.
 
 ---
 
@@ -51,7 +52,9 @@ In modern digital economies, payment aggregators handle billions of rupees acros
 
 | Engineering Competency | How It Is Demonstrated in This Project |
 | :--- | :--- |
-| **Distributed Systems & Event Ingestion** | Event-driven pipeline handling idempotency keys, out-of-order event reconciliation, state transition validation (FSM), and deduplication. |
+| **Distributed Systems & Event Ingestion** | Event-driven pipeline handling idempotency keys, out-of-order event reconciliation, HMAC-SHA256 signature verification, and state machine validation. |
+| **Data Engineering & Lineage** | Multi-schema payment CSV mapper with deterministic column synonyms, timestamp parsing, duplicate isolation, rejected record reporting, and run lineage. |
+| **Security & SSRF Hardening** | Outbound URL ingestion engine with DNS rebinding protection, RFC 1918 private IP blocks, domain allowlisting, and 10 MB payload limits. |
 | **Domain-Specific Fintech Architecture** | Indian payment rails (UPI / NPCI, Cards, NetBanking), MDR fee calculation ($`\text{fee} + \text{18% GST}`$), daily settlement batches ($`\text{T+1}`$ / $`\text{T+2}`$), UTR reconciliation, and chargebacks. |
 | **Agentic AI & State Machines** | 10-node Directed Acyclic Graph (DAG) using **LangGraph**, RAG retrieval over Standard Operating Procedures (SOPs), prompt-injection guardrails, and human approval gates. |
 | **Deterministic Financial Modeling** | Zero hallucination guarantee: Python `Decimal` and SQL aggregation handle all financial sums; LLM strictly provides root-cause explanations with citations. |
@@ -64,16 +67,17 @@ In modern digital economies, payment aggregators handle billions of rupees acros
 1. [Role-Based Workspaces & Architecture](#-1-role-based-workspaces--architecture)
 2. [Interactive SBI UPI Live Demonstration](#-2-interactive-sbi-upi-live-demonstration)
 3. [System Architecture & Ingestion Pipeline](#-3-system-architecture--ingestion-pipeline)
-4. [Real-World Enterprise Dataset (500+ Indian Profiles)](#-4-real-world-enterprise-dataset-500-indian-profiles)
-5. [Deterministic Financial Math & Strict Evidence Rules](#-5-deterministic-financial-math--strict-evidence-rules)
-6. [Machine Learning & Anomaly Detection](#-6-machine-learning--anomaly-detection)
-7. [Technology Stack & Rationale](#-7-technology-stack--rationale)
-8. [Quickstart & Local Setup Guide](#-8-quickstart--local-setup-guide)
-9. [Default Authentication Credentials (RBAC Matrix)](#-9-default-authentication-credentials-rbac-matrix)
-10. [Synthetic Scenario Engine & Augmentation](#-10-synthetic-scenario-engine--augmentation)
-11. [Verification, Linting & Testing Suites](#-11-verification-linting--testing-suites)
-12. [Repository Structure](#-12-repository-structure)
-13. [License & Attribution](#-13-license--attribution)
+4. [Enterprise Payment Ingestion & Webhooks](#-4-enterprise-payment-ingestion--webhooks)
+5. [Real-World Enterprise Dataset (500+ Indian Profiles)](#-5-real-world-enterprise-dataset-500-indian-profiles)
+6. [Deterministic Financial Math & Strict Evidence Rules](#-6-deterministic-financial-math--strict-evidence-rules)
+7. [Payment Operations Anomaly Detection Engine](#-7-payment-operations-anomaly-detection-engine)
+8. [Standard Operating Procedures (RAG Knowledge Base)](#-8-standard-operating-procedures-rag-knowledge-base)
+9. [Technology Stack & Rationale](#-9-technology-stack--rationale)
+10. [Quickstart & Local Setup Guide](#-10-quickstart--local-setup-guide)
+11. [Default Authentication Credentials (RBAC Matrix)](#-11-default-authentication-credentials-rbac-matrix)
+12. [Verification, Linting & Testing Suites](#-12-verification-linting--testing-suites)
+13. [Repository Structure](#-13-repository-structure)
+14. [License & Attribution](#-14-license--attribution)
 
 ---
 
@@ -97,44 +101,9 @@ The application enforces strict role-based navigation where each authenticated u
 │• Customer Home   │   │• Merchant Overview│           │• Executive Overview│  │• Anomaly Triage   │
 │• My Transactions │   │• Scoped Txn Stream│           │• Payment Monitoring│  │• Evidence Locker  │
 │• 5-Step Timeline │   │• Fulfillment Alerts│          │• Bank Switch Health│  │• Root-Cause Citations│
-│• Verified Alerts │   │• Bank SR Slicing  │           │• Incident Command │  │• Human Approvals  │
-│                  │   │• UTR Settlements  │           │• Pipeline Telemetry│  │• Audit Logging    │
+│• Verified Alerts │   │• Bank SR Slicing  │           │• Webhook & Pipeline│  │• Human Approvals  │
 └──────────────────┘   └───────────────────┘           └───────────────────┘   └───────────────────┘
 ```
-
-### Workspace 1: Customer Portal (`/customer` | `customer_aarav`)
-- **Customer Home**: Financial summary card showing total spend, successful charges, pending bank confirmations, and recent orders.
-- **My Transactions**: Scoped personal transaction history with real-time status chips and error codes.
-- **5-Step Payment Verification Timeline**: Visual audit trail tracking:
-  `Payment Initiated` ➔ `Issuing Bank Response` ➔ `Gateway Hub Verification` ➔ `Final Verified State` ➔ `Refund Status (if applicable)`.
-- **Evidence-Backed Notifications**: Clean, transparent customer updates. *Strict policy: Never informs a customer that funds were debited or refunded unless ledger evidence confirms it.*
-
-### Workspace 2: Merchant Portal (`/merchant` | `merchant_swiggy`)
-- **Merchant Overview**: Gross Merchandise Value (GMV), Success Rate %, Pending Verification Count, and Net Payout.
-- **Transactions Stream**: Live stream with transaction ID, customer reference, MDR fee, GST tax, and net payout.
-- **Fulfillment Hold Advisories**: Real-time alerts when bank confirmation webhooks are delayed, advising merchants to pause delivery dispatch to prevent double payments.
-- **Payment Analytics**: Payment rails breakdown (UPI vs Card vs Net Banking) and bank-wise success rate slicing.
-- **Settlement Overview**: Daily disbursement batches, Bank UTR reference tracking, and discrepancy resolution.
-
-### Workspace 3: Admin Command Center (`/admin` | `admin`)
-- **Executive Overview**: Total platform GMV, success/failure rates, gateway distribution, and active blast radius.
-- **Payment Monitoring**: High-volume transaction feed with filters for Payment ID, Merchant, Bank, and Gateway.
-- **Bank Switch Telemetry**: Live telemetry across SBI, HDFC, ICICI, Axis, and Kotak with root-cause attribution (`BANK_CORE_SWITCH_TIMEOUT`, `GATEWAY_TIMEOUT`, `CUSTOMER_DECLINE`).
-- **Incident Command Centre**: Active payment incidents, affected merchant impact, estimated financial exposure in INR, and resolution lifecycle.
-- **Merchants & Customers Directory**: Unified directory with risk tiers, settlement cycles, and customer profiles.
-- **Data Pipeline & Event Telemetry**: Real-time event counter, payment attempt logs, and deduplication stats.
-- **Cryptographic Audit Trail**: Immutable SHA-256 audit ledger with execution latency, tool names, and human approval timestamps.
-
-### Workspace 4: AI Investigation Workspace (`/ai-investigation` | `analyst`)
-- **Structured Investigation**: Evaluates incident telemetry across 7 deterministic sections:
-  1. *Incident Summary*
-  2. *Grounded Telemetry Evidence (SQL Queries & Bank Latencies)*
-  3. *Ranked Root Causes (Probabilistic Hypotheses)*
-  4. *Affected Transaction Stream*
-  5. *Merchant Financial Exposure ($`\Sigma \text{Failed Amounts}`$)*
-  6. *Recommended Mitigation Actions*
-  7. *Confidence Score & Analysis Limitations*
-- **Human Approval Gate**: Intercepts high-impact actions (switch reroutes, bulk retries, merchant freezes) and requires explicit clearance before execution.
 
 ---
 
@@ -162,10 +131,12 @@ The platform includes a 6-step interactive walkthrough that mirrors a real-world
 
 ```mermaid
 flowchart TD
-    subgraph Ingestion ["Event-Driven Ingestion Engine"]
-        A["Payment Event Stream<br>(Synthetic Generator / REST API)"] --> B["Idempotency Gate<br>(Deduplication & Order Check)"]
-        B --> C["Validation & Lifecycle FSM<br>(PENDING ➔ AUTHORIZED ➔ CAPTURED / FAILED)"]
-        C --> D[("PostgreSQL 16 / SQLite<br>(15 Relational Tables)")]
+    subgraph Ingestion ["Multi-Channel Ingestion Layer"]
+        A1["Raw CSV Files<br>(Multi-Synonym Mapper)"] --> B["Canonical Validation & Lineage Engine"]
+        A2["Razorpay Test Webhooks<br>(HMAC-SHA256 Verification)"] --> B
+        A3["Secure External URLs<br>(SSRF Guard & Allowlist)"] --> B
+        B -->|Rejected Rows| R["Rejected Records Report<br>(data/rejected/)"]
+        B -->|Accepted Records| D[("PostgreSQL 16 / SQLite<br>(15 Relational Tables)")]
     end
 
     subgraph Analytics_Engine ["Deterministic Analytics & Telemetry"]
@@ -176,26 +147,50 @@ flowchart TD
 
     subgraph Agentic_Copilot ["LangGraph 10-Node Investigation Copilot"]
         G --> H["Node 1: Intake & Context Binding"]
-        H --> I["Node 2: Allowlisted SQL Telemetry Query"]
-        I --> J["Node 3: SOP Policy RAG Retrieval"]
-        J --> K["Node 4: Deterministic Financial Impact Math"]
-        K --> L["Node 5: Root-Cause Attribution & Recommendation"]
-        L --> M{"Node 6: Human Approval Gate<br>(Requires Level 2/3 Clearance?)"}
-        M -->|Yes| N["State Saved: AWAITING_HUMAN_APPROVAL"]
-        M -->|No| O["Node 7: Action Execution"]
-        N -->|Manager Approves| O
-        O --> P["Node 8: Cryptographic SHA-256 Audit Log"]
+        H --> I["Node 2: Dynamic Planner (Payment Queries)"]
+        I --> J["Node 3: Allowlisted SQL Telemetry"]
+        J --> K["Node 4: Payment SOP RAG Retrieval"]
+        K --> L["Node 5: Payment Analytics Context"]
+        L --> M["Node 6: Evidence Validator (Multi-Stream)"]
+        M --> N["Node 7: Grounded Recommendation Generator"]
+        N --> O{"Node 8: Human Approval Gate<br>(Level 2/3 Clearance Required)"}
+        O -->|Awaiting Decision| P["State: PENDING_APPROVAL"]
+        O -->|Approved| Q["Node 9: Action Executor"]
+        Q --> S["Node 10: Cryptographic Audit Logger"]
     end
 
     subgraph Presentation ["Presentation Layer"]
-        E & F & G & P --> Q["FastAPI REST Backend (:8000)"]
-        Q --> R["Streamlit Role-Based Workspaces (:8501)"]
+        E & F & G & S --> T["FastAPI REST Backend (:8000)"]
+        T --> U["Streamlit Role-Based Workspaces (:8501)"]
     end
 ```
 
 ---
 
-## 📊 4. Real-World Enterprise Dataset (500+ Indian Profiles)
+## ⚡ 4. Enterprise Payment Ingestion & Webhooks
+
+### A. Canonical Payment CSV Ingestion
+- **Deterministic Synonym Auto-Detection**: Dynamically maps varied column names across banks and aggregators:
+  - `txn_id`, `payment_reference`, `reference_id` ➔ `payment_id`
+  - `txn_amount`, `gross_amount`, `transaction_amount` ➔ `amount`
+  - `payment_status`, `txn_status` ➔ `status`
+  - `payment_method`, `pay_mode` ➔ `method`
+- **Data Lineage Tracking**: Every run generates a unique `run_id` (e.g., `RUN-20261105-a1b2c3`), tracking records received, accepted, rejected, and duplicated in `payment_ingestion_runs`.
+- **Row-Level Rejection Audit**: Invalid records (non-positive amounts, malformed timestamps, unsupported currencies) are written to structured rejected CSVs in `data/rejected/` with explicit rejection reasons.
+
+### B. Razorpay Test Mode Webhook Gateway (`/api/v1/webhooks/razorpay`)
+- **HMAC-SHA256 Signature Verification**: Computes cryptographic HMAC-SHA256 over raw request bytes using `RAZORPAY_WEBHOOK_SECRET` and validates against `X-Razorpay-Signature`.
+- **Event Deduplication & Idempotency**: Enforces `idempotency_key` (`payment_id::event_type`) to safely ignore duplicate or out-of-order webhook deliveries.
+- **Payment Lifecycle FSM**: Safely transitions transactions across `payment.authorized`, `payment.captured`, and `payment.failed`.
+
+### C. Secure External URL Ingestion with SSRF Protection
+- **Domain Allowlisting**: Strictly restricts outbound requests to trusted domains (`github.com`, `raw.githubusercontent.com`, `api.razorpay.com`, `npci.org.in`, `rbi.org.in`).
+- **SSRF & DNS Rebinding Guard**: Resolves host DNS before connection and rejects private, loopback, link-local, and reserved IP ranges (RFC 1918, RFC 3927).
+- **Resource Constraints**: Strict 10-second timeout and 10 MB payload cap prevent memory exhaustion.
+
+---
+
+## 📊 5. Real-World Enterprise Dataset (500+ Indian Profiles)
 
 To provide an authentic fintech demonstration without breaching proprietary client data, the platform generates and maintains a comprehensive real-world dataset representing India's leading digital brands:
 
@@ -213,13 +208,9 @@ To provide an authentic fintech demonstration without breaching proprietary clie
 | **Tata Digital (Tata Neu)** (`mid_tataneu_10`) | Super App & Croma | `TATANEU-CROMA-84920`<br>`TATANEU-BB-39102` | 95 txns | ₹7,54,684.58 |
 | **TOTAL SYNTHESIZED PLATFORM VOLUME** | — | — | **1,020 txns** | **₹52,29,516.06** |
 
-### Exported Datasets
-- **[data/raw/fintech_customers_500plus.csv](file:///d:/Deploy-OpsPilot-Razorpay-inspired-AI-FinOps-Platform/data/raw/fintech_customers_500plus.csv)**: 600 unique Indian customer profiles with authentic names, phone numbers, cities, PIN codes, banks, KYC statuses, and spend histories.
-- **[data/raw/fintech_transactions_500plus.csv](file:///d:/Deploy-OpsPilot-Razorpay-inspired-AI-FinOps-Platform/data/raw/fintech_transactions_500plus.csv)**: 600 verified transactions linking customers to merchants with deterministic fee/tax breakdowns.
-
 ---
 
-## 📐 5. Deterministic Financial Math & Strict Evidence Rules
+## 📐 6. Deterministic Financial Math & Strict Evidence Rules
 
 A fundamental design requirement of this platform is **zero financial hallucination**:
 
@@ -228,25 +219,37 @@ A fundamental design requirement of this platform is **zero financial hallucinat
    $$\text{MDR Fee} = \text{Gross Amount} \times \text{Rate}_{\text{rail}}, \quad \text{GST Tax} = \text{MDR Fee} \times 0.18$$
 2. **Strict Evidence Rules**:
    - The AI Copilot never invents unobserved transactions or imaginary error codes.
-   - If telemetry data is insufficient, the system explicitly reports **"Insufficient Telemetry"** and notes the limitations.
+   - If telemetry data is insufficient, the system explicitly reports **"INSUFFICIENT EVIDENCE"** and halts.
    - Customers are never informed that funds were debited or refunded unless verified by a corresponding ledger record.
 3. **Idempotent Ingestion**: Every payment event carries a unique idempotency key (`payment_id::event_type`). Duplicate events are acknowledged without duplicating financial balances.
 
 ---
 
-## 🤖 6. Machine Learning & Anomaly Detection
+## 🤖 7. Payment Operations Anomaly Detection Engine
 
-- **Unsupervised Anomaly Detection**: Uses scikit-learn's `IsolationForest` to analyze multi-dimensional transaction features (failure rate deltas, latency spikes, refund ratio anomalies).
-- **Temporal Integrity**: The training, validation, and test split follows a strict chronological boundary (`train_cutoff_time`, `val_cutoff_time`) to prevent time-series data leakage.
-- **Rule-Based Severity Thresholds**:
-  - `CRITICAL`: Success rate drop $> 25\%$ or financial exposure $> ₹1,00,000$.
-  - `HIGH`: Success rate drop $> 15\%$ or sustained latency $> 3,000\text{ ms}$.
-  - `MEDIUM`: Latency degradation between $1,500\text{ ms}$ and $3,000\text{ ms}$.
-  - `LOW`: Minor deviations within expected operational tolerance.
+The anomaly detection engine (`app/ml/anomaly.py`) bridges machine learning with deterministic financial governance:
+- **Design Policy**: The **ML model proposes** (IsolationForest anomaly score), but **deterministic financial rules decide severity**. Severity is never determined by an LLM.
+- **Detection Areas**:
+  1. *UPI failure-rate spikes* ($`\ge 20\%`$ failure rate on UPI rails).
+  2. *Bank-specific transaction failures* ($`\ge 25\%`$ failure rate on SBI, HDFC, ICICI, or Axis).
+  3. *Gateway latency increases & timeouts* (accumulations of retryable errors: `BAD_REQUEST_GATEWAY_DOWN`, `GATEWAY_TIMEOUT`, `NETWORK_ERROR`).
+  4. *Unusual transaction volume & drop-offs*.
+  5. *Payment success-rate degradation*.
+- **Structured Output**: Every detected anomaly produces an Anomaly ID, entity type, observed vs expected values, severity, ranked root-cause hypothesis, and recommended operational action.
 
 ---
 
-## 🛠️ 7. Technology Stack & Rationale
+## 📚 8. Standard Operating Procedures (RAG Knowledge Base)
+
+The local RAG retrieval store indexes operational payment policies (`data/documents/`):
+- **SOP-001**: *UPI Bank Switch Degradation and Auto-Reroute SOP* — Latency thresholds (>3000ms), dynamic rerouting triggers, and merchant advisory notifications.
+- **SOP-002**: *Fulfillment Hold Policy for Pending Bank Debits* — Suspending order fulfillment for `BANK_DEBITED_PAYMENT_PENDING` to prevent double debits.
+- **SOP-003**: *Payment Reconciliation & Settlement Discrepancy SOP* — Triage for MDR fee mismatches, missing UTR numbers, and delayed T+2 batches.
+- **SOP-004**: *Payment Dispute & Chargeback SLA Management Policy* — Time-bound merchant evidence SLAs (7 days inquiry, 5 days chargeback).
+
+---
+
+## 🛠️ 9. Technology Stack & Rationale
 
 | Layer | Technology | Engineering Rationale |
 | :--- | :--- | :--- |
@@ -255,32 +258,29 @@ A fundamental design requirement of this platform is **zero financial hallucinat
 | **ORM & Migrations** | **SQLAlchemy 2.0 + Alembic** | Schema migrations across 15 relational tables with relationships and indexes. |
 | **Agentic State Machine**| **LangGraph (LangChain)** | Explicit Directed Acyclic Graph (DAG) state machine with pause/resume approval gates. |
 | **Local LLM Engine** | **Ollama (`qwen2.5:3b-instruct`)** | 3.1B parameter open-weights model running locally within 2 GB VRAM; zero paid API costs. |
-| **Knowledge Retrieval** | **In-Process TF-IDF Vectorizer** | Zero-memory lexical search over Standard Operating Procedures (SOPs). Recall@4 = 1.000 without requiring heavy vector databases. |
+| **Knowledge Retrieval** | **In-Process TF-IDF Vectorizer** | Zero-memory lexical search over Standard Operating Procedures (SOPs). |
 | **User Interface** | **Streamlit** | Role-based navigation with Razorpay-inspired green/slate fintech styling and glassmorphism cards. |
 | **Code Quality** | **Ruff, Pytest, Mypy** | Enforces zero linting warnings, strict typing, and full automated test suite passes. |
 
 ---
 
-## ⚡ 8. Quickstart & Local Setup Guide
+## ⚡ 10. Quickstart & Local Setup Guide
 
 ### System Requirements
 - **Python**: 3.11, 3.12, or 3.13
 - **Git**
 - **RAM**: Minimum 4 GB (8 GB recommended)
-- *(Optional)* **Ollama**: For local LLM inference ([Download Ollama](https://ollama.com/download))
+- *(Optional)* **Ollama**: For local LLM inference (`ollama run qwen2.5:3b-instruct`)
 
 ### 1. Clone & Set Up Environment
 ```bash
-# Clone the repository
 git clone https://github.com/naveenkotnana/Deploy-OpsPilot-Razorpay-inspired-AI-FinOps-Platform.git
 cd Deploy-OpsPilot-Razorpay-inspired-AI-FinOps-Platform
 
-# Create and activate virtual environment
+# Create virtual environment
 python -m venv .venv
-# On Windows:
-.venv\Scripts\activate
-# On Linux/macOS:
-source .venv/bin/activate
+.venv\Scripts\activate      # Windows
+# source .venv/bin/activate # Linux/macOS
 
 # Install dependencies
 pip install -r requirements.txt
@@ -288,18 +288,16 @@ pip install -r requirements.txt
 
 ### 2. Configure Environment Variables
 ```bash
-# Copy example environment configuration
 cp .env.example .env
 ```
-*(Default settings run instantly using the local SQLite database and rule fallback without any additional configuration).*
+*(Default settings run instantly using local SQLite and rule fallback without external API keys).*
 
-### 3. Initialize Database & Seed Synthetic Data
+### 3. Initialize Database & Run Anomaly Detection
 ```bash
 python scripts/setup_all.py
 ```
-This single idempotent script creates all tables, seeds enterprise merchants and customer accounts, and runs anomaly detection.
 
-### 4. Launch the Services
+### 4. Launch Services
 
 **Terminal 1 — FastAPI Backend Service:**
 ```bash
@@ -315,7 +313,7 @@ python -m streamlit run frontend.py --server.port 8501
 
 ---
 
-## 🔑 9. Default Authentication Credentials (RBAC Matrix)
+## 🔑 11. Default Authentication Credentials (RBAC Matrix)
 
 | Workspace Portal | Username | Password | Role | Scoped Context |
 | :--- | :--- | :--- | :--- | :--- |
@@ -327,40 +325,17 @@ python -m streamlit run frontend.py --server.port 8501
 
 ---
 
-## 🎲 10. Synthetic Scenario Engine & Augmentation
-
-The platform includes a configurable scenario engine (`app/services/data_generator.py`) capable of generating realistic payment traffic patterns:
-
-1. **Normal Payment Traffic**: Baseline distributions across UPI (65%), Cards (22%), Net Banking (9%), and Wallets (4%).
-2. **SBI Core Switch Outage**: Simulates a core banking timeout with elevated latencies (4,200 ms) and error code `SBI_SWITCH_TIMEOUT`.
-3. **UPI Success Rate Degradation**: Injects NPCI settlement drops and simulates retry behavior.
-4. **HDFC Gateway Timeout Spike**: Simulates gateway network timeouts affecting card transactions.
-5. **Merchant-Specific Failures**: Simulates merchant API key misconfigurations or webhook endpoint delivery failures.
-6. **High-Volume Traffic Surge**: Simulates festive flash sales with elevated transactions per second.
-7. **Duplicate Payment Events**: Injects duplicate transaction events to evaluate idempotency deduplication.
-8. **Delayed Settlements**: Generates pending settlements with missing UTR numbers to trigger reconciliation alerts.
-9. **Refund Anomalies**: Injects double refund requests and MDR calculation discrepancies.
-10. **Multi-Bank Degradation**: Simulates simultaneous network degradation across both SBI and HDFC.
-
----
-
-## 🧪 11. Verification, Linting & Testing Suites
+## 🧪 12. Verification, Linting & Testing Suites
 
 ```bash
-# 1. Run unit test suite
+# 1. Run all unit tests
 python -m pytest tests/unit -v
 
-# 2. Run integration test suite
+# 2. Run integration tests
 python -m pytest tests/integration -v
 
-# 3. Run full test suite with coverage
-python -m pytest tests/ --cov=app --cov-report=term-missing
-
-# 4. Run static lint and code quality check
+# 3. Run static code quality linter
 python -m ruff check app dashboard tests scripts
-
-# 5. Run static type checker
-python -m mypy app/models app/core app/schemas --ignore-missing-imports
 ```
 
 ### Verified Test Results
@@ -374,48 +349,58 @@ tests/unit/test_customer_config.py ............... [5 passed]
 tests/unit/test_rag_store.py ..................... [5 passed]
 tests/unit/test_action_tool.py ................... [5 passed]
 tests/unit/test_validation.py .................... [7 passed]
+tests/unit/test_webhook_gateway.py ............... [5 passed]
+tests/unit/test_payment_csv_ingestion.py ......... [4 passed]
+tests/unit/test_url_ingestion.py ................. [3 passed]
+tests/unit/test_payment_anomalies.py ............. [2 passed]
+tests/unit/test_api_ingestion_endpoints.py ....... [3 passed]
 tests/unit/test_anomaly.py ....................... [3 passed]
 tests/unit/test_batch_upload.py .................. [3 passed]
+tests/unit/test_payment_simulator.py ............. [3 passed]
 ----------------------------------------------------------------------------------
-Unit Test Suite Total:                             71 PASSED (100%)
+Unit Test Suite Total:                             88 PASSED (100%)
+Integration Test Suite Total:                      29 PASSED (100%)
 Ruff Code Quality Audit:                           0 ERRORS (All checks passed)
 ```
 
 ---
 
-## 📁 12. Repository Structure
+## 📁 13. Repository Structure
 
 ```text
 Deploy-OpsPilot-Razorpay-inspired-AI-FinOps-Platform/
 ├── app/
 │   ├── agent/                 # LangGraph 10-node DAG copilot, state models & tools
-│   ├── analytics/             # Deterministic payment analytics & SQL query engine
-│   ├── api/                   # FastAPI asynchronous REST endpoints & security dependencies
+│   ├── analytics/             # Deterministic payment analytics & named SQL query engine
+│   ├── api/                   # FastAPI REST endpoints, Webhook Gateway & Ingestion APIs
+│   │   ├── main.py            # Main API router, lifespan, and ingestion routes
+│   │   └── webhooks.py        # Dedicated Razorpay Test Mode webhook gateway
 │   ├── core/                  # RBAC configuration, JWT tokens, and logging
 │   ├── db/                    # SQLAlchemy database sessions and Base model
-│   ├── ml/                    # IsolationForest anomaly detection models & scalers
-│   ├── models/                # Domain entities (15 payment tables & audit models)
-│   ├── rag/                   # In-process TF-IDF vector store & SOP retrieval
-│   └── services/              # Ingestion, data availability, data generator & reconciliation
+│   ├── ml/                    # IsolationForest anomaly detection models & deterministic rules
+│   ├── models/                # Domain entities (15 payment tables, lineage & audit models)
+│   ├── rag/                   # In-process TF-IDF vector store & Payment SOP retrieval
+│   └── services/              # Canonical CSV mapper, SSRF URL fetcher, and reconciliation
 ├── dashboard/
 │   ├── components/            # Reusable Streamlit UI components & API bridge
 │   ├── styles/                # Razorpay-inspired green/slate CSS design tokens
 │   └── views/                 # 4 Role-Based Workspaces & Operational Deep-Dives
 │       ├── customer_portal.py          # Workspace 1: Customer Portal
 │       ├── merchant_portal.py          # Workspace 2: Merchant Portal
-│       ├── admin_dashboard.py          # Workspace 3: Admin Dashboard
+│       ├── admin_dashboard.py          # Workspace 3: Admin Command & Ingestion Pipeline
 │       ├── ai_investigation_workspace.py # Workspace 4: AI Investigation
 │       ├── sbi_upi_demo.py             # Interactive 6-step SBI UPI Walkthrough
 │       └── simulation.py               # Data Generation & Workbench
 ├── data/
-│   ├── documents/             # SOP Markdown & text documents for RAG retrieval
-│   └── raw/                   # Master CSV datasets (Customers 500+, Transactions 500+)
+│   ├── documents/             # Payment SOP text documents (SOP-001 through SOP-004)
+│   ├── raw/                   # Master datasets & archived raw CSV ingestion runs
+│   └── rejected/              # Lineage-tracked rejected payment records with reasons
 ├── scripts/
 │   ├── setup_all.py           # Single-command database & synthetic bootstrap
 │   ├── generate_real_world_data.py # Real-world brand data generator
 │   └── generate_people_csv.py # 600+ authentic Indian customer profiles exporter
 ├── tests/
-│   ├── unit/                  # Comprehensive unit tests (71 passing tests)
+│   ├── unit/                  # 88 Unit tests covering all payment operations
 │   └── integration/           # End-to-end pipeline & REST API tests
 ├── Dockerfile                 # Multi-stage production container build
 ├── docker-compose.yml         # Containerized PostgreSQL 16 + FastAPI + Streamlit
@@ -425,7 +410,7 @@ Deploy-OpsPilot-Razorpay-inspired-AI-FinOps-Platform/
 
 ---
 
-## 📄 13. License & Attribution
+## 📄 14. License & Attribution
 
 Designed and engineered as a production-grade FinOps & Payment Operations Portfolio Platform by **Naveen Kotnana**.  
 *Inspired by Razorpay's modern Indian fintech design language, multi-bank switch telemetry, and operational rigor.*  

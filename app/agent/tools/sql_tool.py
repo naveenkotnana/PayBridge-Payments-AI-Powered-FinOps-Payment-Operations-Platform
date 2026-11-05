@@ -15,9 +15,19 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.analytics.queries import QUERIES
+from app.analytics.payment_queries import PAYMENT_QUERIES
 from app.core.config import settings
 
+# Unified queries registry: support both payment operations and legacy analytics
+ALL_QUERIES = {**QUERIES, **PAYMENT_QUERIES}
+
 ALLOWED_TABLES = {
+    # Payment domain tables
+    "payment_transactions", "payment_attempts", "payment_events", "payment_orders",
+    "merchants", "customers", "refunds", "settlements", "settlement_items",
+    "disputes", "payment_incidents", "incident_merchants", "reconciliation_discrepancies",
+    "payment_ingestion_runs", "payment_ingestion_records",
+    # Legacy tables (preserved for backward compatibility)
     "monthly_revenue", "apartments", "buildings", "devices", "water_usage",
     "rental_plans", "water_plans", "plan_assignments", "anomalies", "alerts",
     "validation_results", "ingestion_runs",
@@ -52,13 +62,15 @@ def run_named_query(db: Session, name: str, params: Optional[dict] = None,
                     limit: int = None) -> dict:
     """The agent-facing entrypoint. name must be in the analytics allowlist."""
     t0 = time.time()
-    if name not in QUERIES:
+    if name not in ALL_QUERIES:
         return {"ok": False, "error": f"Query '{name}' is not allowlisted",
-                "allowed": sorted(QUERIES), "rows": [], "row_count": 0}
+                "allowed": sorted(ALL_QUERIES), "rows": [], "row_count": 0}
     limit = limit or settings.SQL_ROW_LIMIT
-    sql = QUERIES[name].strip().rstrip(";")
+    sql = ALL_QUERIES[name].strip().rstrip(";")
     sql = f"SELECT * FROM ({sql}) AS q LIMIT :_lim"
     p = dict(params or {})
+    if ":days_back" in sql and "days_back" not in p:
+        p["days_back"] = 0
     p["_lim"] = limit
     try:
         rows = db.execute(text(sql), p).mappings().all()

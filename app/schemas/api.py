@@ -80,3 +80,21 @@ class SimulationAugmentRequest(BaseModel):
     strategy: str = "STRATIFIED_FAILURE_BALANCE"
     target_additional_records: int = Field(default=300, ge=10, le=20000)
     seed: int = 42
+
+
+class URLIngestionRequest(BaseModel):
+    url: str
+    format: str = "CSV"
+
+
+class IngestionRunOut(BaseModel):
+    run_id: str
+    source_type: str
+    source_reference: str
+    records_received: int
+    records_accepted: int
+    records_rejected: int
+    records_duplicate: int
+    status: str
+    rejected_file_path: Optional[str] = None
+    ingested_at: Optional[str] = None
