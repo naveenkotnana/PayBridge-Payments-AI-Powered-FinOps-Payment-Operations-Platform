@@ -612,5 +612,165 @@ div[data-baseweb="select"] span {
     border-top: none !important;
     border-radius: 0 0 6px 6px !important;
 }
+
+/* ==============================================================
+   CLEAN FINTECH REDESIGN CLASSES (INTERVIEW-FRIENDLY & MINIMAL)
+   ============================================================== */
+.clean-kpi-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 1.1rem 1.25rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    transition: all 0.2s ease;
+}
+.clean-kpi-card:hover {
+    border-color: #CBD5E1;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+.clean-kpi-number {
+    font-size: 1.85rem;
+    font-weight: 800;
+    color: #0F172A;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+}
+.clean-kpi-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.4rem;
+}
+.clean-kpi-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 999px;
+    margin-top: 0.45rem;
+}
+.clean-kpi-trend.positive { background: #ECFDF5; color: #059669; }
+.clean-kpi-trend.negative { background: #FEF2F2; color: #DC2626; }
+.clean-kpi-trend.warning { background: #FFFBEB; color: #D97706; }
+.clean-kpi-trend.neutral { background: #F1F5F9; color: #475569; }
+
+/* 7-Step Visual Workflow Stepper */
+.workflow-step-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    padding: 0.75rem 0.6rem;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    min-height: 82px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+.workflow-step-number {
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: #2F5BFF;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+}
+.workflow-step-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #0F172A;
+    line-height: 1.25;
+}
+.workflow-arrow-separator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94A3B8;
+    font-weight: 700;
+    font-size: 1.15rem;
+}
+
+/* AI Recommendation Alert Card */
+.ai-recommendation-box {
+    background: #FFFFFF;
+    border: 1px solid #FCD34D;
+    border-left: 5px solid #F59E0B;
+    border-radius: 12px;
+    padding: 1.25rem 1.4rem;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.08);
+    margin-bottom: 1.25rem;
+}
+.ai-recommendation-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #92400E;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0.4rem;
+}
+.ai-section-subtitle {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.5rem;
+    margin-bottom: 0.2rem;
+}
+.ai-evidence-list {
+    margin: 0;
+    padding-left: 1.2rem;
+    font-size: 0.82rem;
+    color: #334155;
+    line-height: 1.5;
+}
+
+/* Timeline Stepper */
+.timeline-horizontal {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    padding: 0.8rem 0.5rem;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+}
+.timeline-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    flex: 1;
+}
+.timeline-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #10B981;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+.timeline-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #0F172A;
+}
+.timeline-time {
+    font-size: 0.65rem;
+    color: #64748B;
+}
+
 </style>
 """
