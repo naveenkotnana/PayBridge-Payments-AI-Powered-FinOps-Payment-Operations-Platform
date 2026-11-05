@@ -105,8 +105,10 @@ class MonthlyRevenue(Base):
     total_revenue = Column(Numeric(14, 2))
     validation_flag = Column(String(20), index=True)   # PASS | EXCEPTION
     exception_code = Column(String(60), nullable=True)
-    __table_args__ = (UniqueConstraint("billing_month", "apartment_id",
-                                       name="uq_revenue_month_apartment"),)
+    __table_args__ = (
+        UniqueConstraint("billing_month", "apartment_id", name="uq_revenue_month_apartment"),
+        {"extend_existing": True}
+    )
 
 
 class IngestionRun(Base):

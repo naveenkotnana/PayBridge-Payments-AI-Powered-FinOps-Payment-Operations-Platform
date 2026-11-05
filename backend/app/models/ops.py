@@ -82,4 +82,7 @@ class EvaluationResult(Base):
     score = Column(Numeric(8, 4), nullable=True)
     detail = Column(Text, nullable=True)
     run_at = Column(DateTime, server_default=func.now())
-    __table_args__ = (UniqueConstraint("suite", "case_id", "run_at", name="uq_eval"),)
+    __table_args__ = (
+        UniqueConstraint("suite", "case_id", "run_at", name="uq_eval"),
+        {"extend_existing": True}
+    )

@@ -15,7 +15,7 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, futu
 
 
 class Base(DeclarativeBase):
-    pass
+    __table_args__ = {"extend_existing": True}
 
 
 def get_db():
