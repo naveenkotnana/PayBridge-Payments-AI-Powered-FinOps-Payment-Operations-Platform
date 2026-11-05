@@ -4,12 +4,12 @@
 Core Design Principles:
 - Simple > complex
 - Visual clarity > information overload
-- Few high-signal metrics > dozens of scattered numbers
-- The complete product story in 30-60 seconds:
+- High-signal metrics & transparent workflows
+- 30-60 second interviewer comprehension:
     DATA -> DETECTION -> AI INVESTIGATION -> EVIDENCE -> HUMAN APPROVAL -> ACTION -> AUDIT
 """
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
 from app.db.base import SessionLocal
 from app.models.payments import (
@@ -18,11 +18,17 @@ from app.models.payments import (
 )
 
 
+def render_html(html_str: str) -> None:
+    """Render HTML safely into Streamlit without triggering Markdown 4-space code block formatting."""
+    cleaned = "\n".join(line.strip() for line in html_str.strip().splitlines())
+    st.markdown(cleaned, unsafe_allow_html=True)
+
+
 def render_overview(role: str = "ADMIN"):
     """Render the master interview-ready overview dashboard."""
 
     # ------------------------------------------------------------- 1. HEADER
-    st.markdown("""
+    render_html("""
     <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; padding:1.25rem 1.5rem; margin-bottom:1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
         <div>
             <div style="display:flex; align-items:center; gap:8px;">
@@ -42,7 +48,7 @@ def render_overview(role: str = "ADMIN"):
             <span class="fintech-badge badge-high" style="font-size:0.75rem; padding:4px 10px;">LEVEL 3 RBAC</span>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     # Fetch live telemetry from the database
     with SessionLocal() as db:
@@ -57,7 +63,7 @@ def render_overview(role: str = "ADMIN"):
 
         active_anomalies = db.query(PaymentIncident).filter(PaymentIncident.status.in_(["OPEN", "INVESTIGATING"])).count()
         if active_anomalies == 0:
-            active_anomalies = 3  # Realistic synthetic active alerts for demo
+            active_anomalies = 3  # High-signal demo alerts
 
     # ------------------------------------------------------------- 2. TOP KPI CARDS
     st.markdown('<div style="font-size:0.82rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:#475569; margin-bottom:0.6rem;">Key Performance Indicators</div>', unsafe_allow_html=True)
@@ -65,49 +71,49 @@ def render_overview(role: str = "ADMIN"):
     k1, k2, k3, k4, k5 = st.columns(5)
 
     with k1:
-        st.markdown(f"""
+        render_html(f"""
         <div class="clean-kpi-card">
             <div class="clean-kpi-label">Total Transactions</div>
             <div class="clean-kpi-number">{total_txns:,}</div>
             <div class="clean-kpi-trend positive">↑ 12% vs last week</div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with k2:
-        st.markdown(f"""
+        render_html(f"""
         <div class="clean-kpi-card">
             <div class="clean-kpi-label">Success Rate</div>
             <div class="clean-kpi-number" style="color:#059669;">{sr_pct:.1f}%</div>
             <div class="clean-kpi-trend positive">🟢 {captured_count:,} Captured</div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with k3:
-        st.markdown(f"""
+        render_html(f"""
         <div class="clean-kpi-card">
             <div class="clean-kpi-label">Failure Rate</div>
             <div class="clean-kpi-number" style="color:#DC2626;">{fail_pct:.1f}%</div>
             <div class="clean-kpi-trend negative">⚠️ {failed_count} Failed</div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with k4:
-        st.markdown(f"""
+        render_html(f"""
         <div class="clean-kpi-card">
             <div class="clean-kpi-label">Active Anomalies</div>
             <div class="clean-kpi-number" style="color:#D97706;">{active_anomalies}</div>
             <div class="clean-kpi-trend warning">🚨 Needs Attention</div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with k5:
-        st.markdown(f"""
+        render_html(f"""
         <div class="clean-kpi-card">
             <div class="clean-kpi-label">Pending Transactions</div>
             <div class="clean-kpi-number" style="color:#2563EB;">{pending_count}</div>
             <div class="clean-kpi-trend neutral">⏱️ In Verification</div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     st.markdown("<div style='height: 1.25rem;'></div>", unsafe_allow_html=True)
 
@@ -117,7 +123,7 @@ def render_overview(role: str = "ADMIN"):
     h1, h2 = st.columns([1.1, 1.9])
 
     with h1:
-        st.markdown("""
+        render_html("""
         <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; padding:1.25rem; height:100%; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
             <div style="font-size:0.88rem; font-weight:700; color:#0F172A; margin-bottom:0.8rem;">Payment Success Summary</div>
             <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.82rem;">
@@ -127,7 +133,6 @@ def render_overview(role: str = "ADMIN"):
             <div style="width:100%; height:8px; background:#F1F5F9; border-radius:4px; overflow:hidden; margin-bottom:1rem;">
                 <div style="width:92.4%; height:100%; background:#10B981;"></div>
             </div>
-
             <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.82rem;">
                 <span style="color:#DC2626; font-weight:600;">Failed Transactions</span>
                 <strong style="color:#0F172A;">7.6% (77)</strong>
@@ -135,15 +140,14 @@ def render_overview(role: str = "ADMIN"):
             <div style="width:100%; height:8px; background:#F1F5F9; border-radius:4px; overflow:hidden; margin-bottom:1rem;">
                 <div style="width:7.6%; height:100%; background:#EF4444;"></div>
             </div>
-
             <div style="font-size:0.75rem; color:#64748B; padding-top:0.6rem; border-top:1px solid #F1F5F9;">
-                Primary failure driver: <strong>SBI Core Switch Timeout</strong> (4,250 ms latency surge).
+                Primary failure driver: <strong style="color:#0F172A;">SBI Core Switch Timeout</strong> (4,250 ms latency surge).
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with h2:
-        st.markdown("""
+        render_html("""
         <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; padding:1.25rem; height:100%; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
                 <div style="font-size:0.88rem; font-weight:700; color:#0F172A;">Core Banking Gateway Health</div>
@@ -176,21 +180,21 @@ def render_overview(role: str = "ADMIN"):
                 <span style="color:#00875A; font-weight:700;">Dynamic Switch Rerouting: READY</span>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
 
-    # ------------------------------------------------------------- 4. AI INVESTIGATION (THE MOST IMPORTANT PART)
-    st.markdown("""
+    # ------------------------------------------------------------- 4. AI INVESTIGATION WORKFLOW
+    render_html("""
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
         <div style="font-size:0.82rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:#475569;">
             AI Investigation Workflow • 7-Stage Autonomous State Machine
         </div>
         <span style="font-size:0.72rem; color:#2563EB; font-weight:700;">LangGraph 10-Node Architecture</span>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
-    st.markdown("""
+    render_html("""
     <div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:8px; margin-bottom:1.25rem;">
         <div class="workflow-step-card" style="border-top:3px solid #EF4444;">
             <div class="workflow-step-number" style="color:#EF4444;">Step 1</div>
@@ -221,7 +225,7 @@ def render_overview(role: str = "ADMIN"):
             <div class="workflow-step-title">Audit Recorded</div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     # ------------------------------------------------------------- 5 & 6. ANOMALY TABLE & AI RECOMMENDATION CARD
     col_table, col_rec = st.columns([1.1, 0.9])
@@ -262,7 +266,9 @@ def render_overview(role: str = "ADMIN"):
         if "action_status" not in st.session_state:
             st.session_state.action_status = "Waiting for human approval"
 
-        st.markdown(f"""
+        status_color = "#059669" if "Approved" in st.session_state.action_status else ("#DC2626" if "Rejected" in st.session_state.action_status else "#B45309")
+
+        render_html(f"""
         <div class="ai-recommendation-box">
             <div class="ai-recommendation-title">
                 <span>⚠️ High Failure Rate Detected</span>
@@ -283,12 +289,12 @@ def render_overview(role: str = "ADMIN"):
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.75rem; padding-top:0.6rem; border-top:1px dashed #FCD34D;">
                 <span style="font-size:0.75rem; color:#78350F; font-weight:700;">Status:</span>
-                <span style="font-size:0.75rem; font-weight:700; color:{'#059669' if 'Approved' in st.session_state.action_status else ('#DC2626' if 'Rejected' in st.session_state.action_status else '#B45309')};">
+                <span style="font-size:0.75rem; font-weight:700; color:{status_color};">
                     {st.session_state.action_status}
                 </span>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
         btn_c1, btn_c2, btn_c3 = st.columns(3)
         with btn_c1:
@@ -309,7 +315,7 @@ def render_overview(role: str = "ADMIN"):
     # ------------------------------------------------------------- 7. AUDIT / GOVERNANCE TIMELINE
     st.markdown('<div style="font-size:0.82rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:#475569; margin-bottom:0.6rem;">Cryptographic Audit & Governance Trail</div>', unsafe_allow_html=True)
 
-    st.markdown("""
+    render_html("""
     <div class="timeline-horizontal">
         <div class="timeline-node">
             <div class="timeline-dot" style="background:#EF4444;">1</div>
@@ -347,4 +353,4 @@ def render_overview(role: str = "ADMIN"):
             <div class="timeline-time">10:15:23 AM</div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """)

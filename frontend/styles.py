@@ -26,10 +26,75 @@ html, body, [class*="css"], .stApp {
 [data-testid="stSidebar"] {
     background-color: #0B1F3A !important;
     border-right: 1px solid #162E50 !important;
+    color: #E2E8F0 !important;
 }
 
-[data-testid="stSidebar"] * {
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] .stMarkdown {
     color: #E2E8F0 !important;
+}
+
+/* Sidebar Selectbox (Switch Persona) High-Contrast Styling */
+[data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div,
+[data-testid="stSidebar"] div[data-baseweb="select"] > div {
+    background-color: #122846 !important;
+    border: 1px solid #2A4365 !important;
+    border-radius: 8px !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stSelectbox"] *,
+[data-testid="stSidebar"] div[data-baseweb="select"] * {
+    color: #FFFFFF !important;
+}
+
+[data-testid="stSidebar"] div[data-baseweb="select"] input {
+    color: #FFFFFF !important;
+}
+
+[data-testid="stSidebar"] div[data-baseweb="select"] div,
+[data-testid="stSidebar"] div[data-baseweb="select"] span {
+    color: #FFFFFF !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+}
+
+[data-testid="stSidebar"] div[data-baseweb="select"] svg {
+    fill: #38BDF8 !important;
+    color: #38BDF8 !important;
+}
+
+/* Dropdown menu popover items */
+div[data-baseweb="popover"] {
+    z-index: 999999 !important;
+}
+div[data-baseweb="popover"] ul {
+    background-color: #FFFFFF !important;
+    border: 1px solid #CBD5E1 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+    padding: 6px !important;
+}
+div[data-baseweb="popover"] li {
+    background-color: transparent !important;
+    border-radius: 6px !important;
+    font-size: 0.85rem !important;
+    padding: 8px 12px !important;
+    cursor: pointer !important;
+}
+div[data-baseweb="popover"] li,
+div[data-baseweb="popover"] li * {
+    color: #0F172A !important;
+    font-weight: 500 !important;
+}
+div[data-baseweb="popover"] li:hover,
+div[data-baseweb="popover"] li[aria-selected="true"] {
+    background-color: #EFF6FF !important;
+}
+div[data-baseweb="popover"] li:hover *,
+div[data-baseweb="popover"] li[aria-selected="true"] * {
+    color: #1D4ED8 !important;
+    font-weight: 700 !important;
 }
 
 [data-testid="stSidebar"] hr {
