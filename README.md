@@ -1,7 +1,7 @@
 # ⚡ PayBridge Payments — AI-Powered FinOps & Payment Operations Platform
 
 <p align="center">
-  <img src="screenshots/operations_overview.png" alt="PayBridge Payment Operations Overview" width="940" style="border-radius: 12px; box-shadow: 0 12px 36px rgba(0,0,0,0.2);" />
+  <img src="screenshots/operations_overview.png" alt="PayBridge Payment Operations Overview" width="940" style="border-radius: 12px; box-shadow: 0 12px 36px rgba(88, 25, 25, 0.2);" />
 </p>
 
 <p align="center">
@@ -268,8 +268,8 @@ The platform's local RAG store (`backend/app/rag/store.py`) indexes real-world S
 
 ### 1. Clone & Set Up Virtual Environment
 ```bash
-git clone https://github.com/naveenkotnana/Deploy-OpsPilot-Razorpay-inspired-AI-FinOps-Platform.git
-cd Deploy-OpsPilot-Razorpay-inspired-AI-FinOps-Platform
+git clone https://github.com/naveenkotnana/PayBridge-Payments-AI-Powered-FinOps-Payment-Operations-Platform.git
+cd PayBridge-Payments-AI-Powered-FinOps-Payment-Operations-Platform
 
 # Create virtual environment
 python -m venv .venv
