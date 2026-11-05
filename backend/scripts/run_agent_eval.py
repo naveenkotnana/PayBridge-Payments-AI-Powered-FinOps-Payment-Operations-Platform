@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 """Agent + security evaluation. Executes real workflows against the real DB.
 Ollama is optional: cases assert on tool selection, evidence grounding,
 approval behaviour and failure recovery, all of which are deterministic."""

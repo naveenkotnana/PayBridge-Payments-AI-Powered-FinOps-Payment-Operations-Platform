@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 """Worker batch job: recompute revenue and re-run anomaly detection."""
 import sys
 import pathlib

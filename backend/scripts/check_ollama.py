@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 """Detect Ollama and recommend a model sized for 8 GB RAM / GTX 1650 4 GB."""
 import sys
 import pathlib

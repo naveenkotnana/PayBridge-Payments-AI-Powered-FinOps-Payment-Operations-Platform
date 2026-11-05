@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 """One-command bootstrap: ingest -> revenue -> anomalies -> users -> evals.
 Run this first. Idempotent; safe to re-run."""
 import sys

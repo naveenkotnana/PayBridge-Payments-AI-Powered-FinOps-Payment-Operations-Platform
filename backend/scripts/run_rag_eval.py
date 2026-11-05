@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 """Run the RAG evaluation. Measures Recall@K, citation correctness, groundedness.
 All numbers reported are produced by this script — none are hand-written."""
 import sys

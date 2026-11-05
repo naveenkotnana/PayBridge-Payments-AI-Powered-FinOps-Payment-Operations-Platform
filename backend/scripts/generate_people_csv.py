@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 """Generate realistic real-world 500+ Indian customer and payment records in .csv format.
 
 Outputs:

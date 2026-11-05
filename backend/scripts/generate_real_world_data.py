@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 """Script to generate realistic real-world augmented data across top Indian digital brands.
 
 Brands:
