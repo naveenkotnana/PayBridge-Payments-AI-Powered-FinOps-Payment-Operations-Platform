@@ -27,14 +27,14 @@ services:
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b-instruct}
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
     ports: ["8000:8000"]
-    volumes: ["./data:/app/data"]
+    volumes: ["./backend/data:/app/backend/data"]
     extra_hosts: ["host.docker.internal:host-gateway"]
     command: >
-      sh -c "python scripts/setup_all.py &&
+      sh -c "python backend/scripts/setup_all.py &&
              uvicorn backend:app --host 0.0.0.0 --port 8000"
 
   dashboard:
-    build: {context: ., dockerfile: docker/Dockerfile.dashboard}
+    build: {context: ., dockerfile: frontend/Dockerfile}
     depends_on: [api]
     environment:
       API_BASE_URL: http://api:8000
@@ -51,7 +51,7 @@ services:
     extra_hosts: ["host.docker.internal:host-gateway"]
     # Periodic recompute: revenue + anomaly detection.
     command: >
-      sh -c "while true; do python scripts/run_batch.py; sleep 3600; done"
+      sh -c "while true; do python backend/scripts/run_batch.py; sleep 3600; done"
 
 volumes:
   pgdata:

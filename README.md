@@ -1,7 +1,7 @@
 # ⚡ Razorpay-Inspired AI Payments — Intelligent Payment Operations & Financial Intelligence Platform
 
 <p align="center">
-  <img src="assets/operations_overview.png" alt="Razorpay-Inspired AI Payments Operations Overview" width="900" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);" />
+  <img src="screenshots/operations_overview.png" alt="Razorpay-Inspired AI Payments Operations Overview" width="900" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);" />
 </p>
 
 <p align="center">
@@ -367,45 +367,47 @@ Ruff Code Quality Audit:                           0 ERRORS (All checks passed)
 
 ## 📁 13. Repository Structure
 
+The repository follows a clean, intuitive layout separating backend APIs, frontend portals, ML models, test suites, and documentation:
+
 ```text
 Deploy-OpsPilot-Razorpay-inspired-AI-FinOps-Platform/
-├── app/
-│   ├── agent/                 # LangGraph 10-node DAG copilot, state models & tools
-│   ├── analytics/             # Deterministic payment analytics & named SQL query engine
-│   ├── api/                   # FastAPI REST endpoints, Webhook Gateway & Ingestion APIs
-│   │   ├── main.py            # Main API router, lifespan, and ingestion routes
-│   │   └── webhooks.py        # Dedicated Razorpay Test Mode webhook gateway
-│   ├── core/                  # RBAC configuration, JWT tokens, and logging
-│   ├── db/                    # SQLAlchemy database sessions and Base model
-│   ├── ml/                    # IsolationForest anomaly detection models & deterministic rules
-│   ├── models/                # Domain entities (15 payment tables, lineage & audit models)
-│   ├── rag/                   # In-process TF-IDF vector store & Payment SOP retrieval
-│   └── services/              # Canonical CSV mapper, SSRF URL fetcher, and reconciliation
-├── dashboard/
-│   ├── components/            # Reusable Streamlit UI components & API bridge
-│   ├── styles/                # Razorpay-inspired green/slate CSS design tokens
-│   └── views/                 # 4 Role-Based Workspaces & Operational Deep-Dives
-│       ├── customer_portal.py          # Workspace 1: Customer Portal
-│       ├── merchant_portal.py          # Workspace 2: Merchant Portal
-│       ├── admin_dashboard.py          # Workspace 3: Admin Command & Ingestion Pipeline
-│       ├── ai_investigation_workspace.py # Workspace 4: AI Investigation
-│       ├── sbi_upi_demo.py             # Interactive 6-step SBI UPI Walkthrough
-│       └── simulation.py               # Data Generation & Workbench
-├── data/
-│   ├── documents/             # Payment SOP text documents (SOP-001 through SOP-004)
-│   ├── raw/                   # Master datasets & archived raw CSV ingestion runs
-│   └── rejected/              # Lineage-tracked rejected payment records with reasons
-├── scripts/
-│   ├── setup_all.py           # Single-command database & synthetic bootstrap
-│   ├── generate_real_world_data.py # Real-world brand data generator
-│   └── generate_people_csv.py # 600+ authentic Indian customer profiles exporter
-├── tests/
-│   ├── unit/                  # 88 Unit tests covering all payment operations
-│   └── integration/           # End-to-end pipeline & REST API tests
-├── Dockerfile                 # Multi-stage production container build
-├── docker-compose.yml         # Containerized PostgreSQL 16 + FastAPI + Streamlit
-├── requirements.txt           # Production dependencies pinned for reproducibility
-└── README.md                  # Executive architectural portfolio documentation
+├── .github/workflows/         # Automated GitHub Actions CI/CD pipelines
+├── backend/                   # FastAPI REST API, payment services & database engine
+│   ├── app/                   # Core application package
+│   │   ├── agent/             # LangGraph 10-node DAG copilot, state models & tools
+│   │   ├── analytics/         # Deterministic payment analytics & named SQL query engine
+│   │   ├── api/               # FastAPI REST endpoints & Webhook Gateway
+│   │   ├── core/              # Security, JWT tokens, RBAC & configuration
+│   │   ├── db/                # SQLAlchemy database sessions & ORM base
+│   │   ├── models/            # 15 payment domain entities & audit models
+│   │   ├── rag/               # Vector store & Payment SOP retrieval
+│   │   └── services/          # Canonical CSV mapper, SSRF URL fetcher & reconciliation
+│   ├── alembic/               # Database migration versions
+│   ├── config/                # YAML configs & customer profiles
+│   ├── data/                  # Datasets, SOP documents & ingestion archives
+│   ├── scripts/               # Bootstrapping scripts & evaluation suites
+│   ├── main.py                # Backend entrypoint (`uvicorn backend:app`)
+│   └── rag_agent.py           # Standalone RAG CLI query agent
+├── docs/                      # Architectural specs, security protocols & license
+├── frontend/                  # Streamlit Operations & Intelligence Dashboard
+│   ├── views/                 # 4 Role-Based Workspaces & Operational Deep-Dives
+│   ├── app.py                 # Main Streamlit application entrypoint
+│   ├── components.py          # Reusable UI widgets & API client
+│   ├── styles.py              # Custom CSS design tokens
+│   └── Dockerfile             # Frontend container definition
+├── ml/                        # Machine Learning anomaly detection models
+│   ├── anomaly.py             # Isolation Forest + DBSCAN anomaly detector
+│   └── __init__.py            # ML package exports
+├── screenshots/               # Architectural diagrams & platform screenshots
+├── tests/                     # 117 Unit and Integration tests (100% passing)
+├── .dockerignore              # Container build exclusions
+├── .env.example               # Environment variables template
+├── .gitignore                 # Git ignore rules
+├── CONTRIBUTING.md            # Developer contribution guide
+├── docker-compose.yml         # Container orchestration (API + Dashboard + DB)
+├── Dockerfile                 # Backend container image
+├── README.md                  # Project documentation
+└── requirements.txt           # Pinned production dependencies
 ```
 
 ---
@@ -414,4 +416,4 @@ Deploy-OpsPilot-Razorpay-inspired-AI-FinOps-Platform/
 
 Designed and engineered as a production-grade FinOps & Payment Operations Portfolio Platform by **Naveen Kotnana**.  
 *Inspired by Razorpay's modern Indian fintech design language, multi-bank switch telemetry, and operational rigor.*  
-Distributed under the **[MIT License](LICENSE)**.
+Distributed under the **[MIT License](docs/LICENSE)**.

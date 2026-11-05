@@ -17,25 +17,27 @@ jobs:
           pip install -r requirements.txt
 
       - name: Lint (Ruff)
-        run: ruff check app dashboard scripts tests
+        run: ruff check backend frontend ml tests
 
       - name: Type check (Mypy)
-        run: mypy app/models app/core app/schemas app/services --ignore-missing-imports
+        run: mypy backend/app/models backend/app/core backend/app/schemas backend/app/services --ignore-missing-imports
 
       - name: Bootstrap data & schema
-        run: python scripts/setup_all.py
+        run: python backend/scripts/setup_all.py
 
       - name: Verify database migration head
-        run: alembic current
+        run: |
+          cd backend
+          alembic current
 
       - name: Automated test suite (Unit & Integration)
-        run: pytest tests/ -v --cov=app --cov-report=term-missing
+        run: pytest tests/ -v --cov=backend/app --cov=ml --cov-report=term-missing
 
       - name: RAG evaluation (Retrieval & Grounding)
-        run: python scripts/run_rag_eval.py
+        run: python backend/scripts/run_rag_eval.py
 
       - name: Agent & Security evaluation (Guardrails & Governance)
-        run: python scripts/run_agent_eval.py
+        run: python backend/scripts/run_agent_eval.py
 
   docker:
     runs-on: ubuntu-latest
@@ -44,4 +46,4 @@ jobs:
       - name: Build API image
         run: docker build -t opspilot-api .
       - name: Build dashboard image
-        run: docker build -f docker/Dockerfile.dashboard -t opspilot-dashboard .
+        run: docker build -f frontend/Dockerfile -t opspilot-dashboard .
