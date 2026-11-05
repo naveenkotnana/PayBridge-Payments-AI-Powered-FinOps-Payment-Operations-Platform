@@ -8,11 +8,12 @@ from decimal import Decimal
 import pandas as pd
 import streamlit as st
 
-from app.db.base import SessionLocal
-from app.models.payments import (
+from backend.app.db.base import SessionLocal
+from backend.app.models.payments import (
     Merchant,
     PaymentTransaction,
 )
+from frontend.styles import render_html
 
 
 def render_merchant_portal(merchant_id: str = "mid_rameshwaram_01", page: str = "Overview"):
@@ -44,7 +45,7 @@ def render_merchant_portal(merchant_id: str = "mid_rameshwaram_01", page: str = 
         today_rev = sum([Decimal(str(t.amount)) for t in captured], Decimal("0.00")) + Decimal("38140.00")
 
         # --------------------------------------------------------- 1. HEADER
-        st.markdown("""
+        render_html("""
         <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; padding:1.25rem 1.5rem; margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
             <div>
                 <div style="display:flex; align-items:center; gap:8px;">
@@ -61,13 +62,13 @@ def render_merchant_portal(merchant_id: str = "mid_rameshwaram_01", page: str = 
                 <div style="font-size:0.88rem; font-weight:700; color:#059669;">Daily T+1 Direct Bank Deposit</div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
         # --------------------------------------------------------- 2. BUSINESS IMPACT ALERT
         incident_approved = "Approved" in st.session_state.get("incident_status", "")
 
         if not incident_approved:
-            st.markdown("""
+            render_html("""
             <div style="background:#FFFBEB; border:1px solid #FCD34D; border-left:5px solid #F59E0B; border-radius:10px; padding:1rem 1.25rem; margin-bottom:1.25rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <div style="display:flex; align-items:center; gap:8px;">
@@ -87,9 +88,9 @@ def render_merchant_portal(merchant_id: str = "mid_rameshwaram_01", page: str = 
                     <span>Status: <strong style="color:#B45309;">Admin is investigating the issue</strong></span>
                 </div>
             </div>
-            """, unsafe_allow_html=True)
+            """)
         else:
-            st.markdown("""
+            render_html("""
             <div style="background:#ECFDF5; border:1px solid #A7F3D0; border-left:5px solid #10B981; border-radius:10px; padding:1rem 1.25rem; margin-bottom:1.25rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <div style="display:flex; align-items:center; gap:8px;">
@@ -104,7 +105,7 @@ def render_merchant_portal(merchant_id: str = "mid_rameshwaram_01", page: str = 
                     Admin has taken corrective action and temporarily routed UPI transactions to healthy banking switches. Normal order processing is restored.
                 </div>
             </div>
-            """, unsafe_allow_html=True)
+            """)
 
         # --------------------------------------------------------- 3. SUB-NAVIGATION TABS
         tab_choice = st.radio(
@@ -138,7 +139,7 @@ def render_merchant_portal(merchant_id: str = "mid_rameshwaram_01", page: str = 
 
             c_o1, c_o2 = st.columns(2)
             with c_o1:
-                st.markdown("""
+                render_html("""
                 <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:10px; padding:1.1rem; box-shadow:0 1px 2px rgba(0,0,0,0.02); margin-bottom:10px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                         <strong style="color:#0F172A; font-size:0.95rem;">Order #RC10291</strong>
@@ -153,9 +154,9 @@ def render_merchant_portal(merchant_id: str = "mid_rameshwaram_01", page: str = 
                         <span style="color:#2563EB; font-weight:600;">Kitchen Status: 🍽️ Preparing</span>
                     </div>
                 </div>
-                """, unsafe_allow_html=True)
+                """)
 
-                st.markdown("""
+                render_html("""
                 <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:10px; padding:1.1rem; box-shadow:0 1px 2px rgba(0,0,0,0.02); margin-bottom:10px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                         <strong style="color:#0F172A; font-size:0.95rem;">Order #RC10293</strong>
@@ -170,10 +171,10 @@ def render_merchant_portal(merchant_id: str = "mid_rameshwaram_01", page: str = 
                         <span style="color:#2563EB; font-weight:600;">Kitchen Status: 🍽️ Preparing</span>
                     </div>
                 </div>
-                """, unsafe_allow_html=True)
+                """)
 
             with c_o2:
-                st.markdown("""
+                render_html("""
                 <div style="background:#FFFFFF; border:1px solid #FCA5A5; border-radius:10px; padding:1.1rem; box-shadow:0 1px 2px rgba(0,0,0,0.02); margin-bottom:10px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                         <strong style="color:#0F172A; font-size:0.95rem;">Order #RC10292</strong>
@@ -188,9 +189,9 @@ def render_merchant_portal(merchant_id: str = "mid_rameshwaram_01", page: str = 
                         <span style="color:#DC2626; font-weight:600;">Do not prepare (Unpaid)</span>
                     </div>
                 </div>
-                """, unsafe_allow_html=True)
+                """)
 
-                st.markdown("""
+                render_html("""
                 <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:10px; padding:1.1rem; box-shadow:0 1px 2px rgba(0,0,0,0.02); margin-bottom:10px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                         <strong style="color:#0F172A; font-size:0.95rem;">Order #RC10294</strong>
@@ -205,7 +206,7 @@ def render_merchant_portal(merchant_id: str = "mid_rameshwaram_01", page: str = 
                         <span style="color:#059669; font-weight:600;">Status: 🛵 Delivered</span>
                     </div>
                 </div>
-                """, unsafe_allow_html=True)
+                """)
 
         elif tab_choice == "Orders":
             st.markdown('<div style="font-size:0.88rem; font-weight:800; color:#0F172A; margin-bottom:0.75rem;">All Store Orders</div>', unsafe_allow_html=True)

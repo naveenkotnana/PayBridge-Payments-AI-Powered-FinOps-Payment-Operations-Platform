@@ -35,9 +35,9 @@ import streamlit as st
 
 # Auto-initialize database schema, demo users, and synthetic data
 try:
-    from app.core.security import seed_demo_users
-    from app.db.base import SessionLocal, init_db
-    from app.models import MonthlyRevenue, User
+    from backend.app.core.security import seed_demo_users
+    from backend.app.db.base import SessionLocal, init_db
+    from backend.app.models import MonthlyRevenue, User
     init_db()
     with SessionLocal() as _bootstrap_db:
         if _bootstrap_db.query(User).count() == 0:

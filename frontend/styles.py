@@ -955,3 +955,13 @@ div[data-testid="column"] button[kind="secondary"]:hover {
 
 </style>
 """
+
+import textwrap
+import streamlit as st
+
+
+def render_html(html_str: str) -> None:
+    """Render HTML safely into Streamlit without triggering Markdown 4-space code block formatting."""
+    cleaned = textwrap.dedent(html_str).strip()
+    st.markdown(cleaned, unsafe_allow_html=True)
+

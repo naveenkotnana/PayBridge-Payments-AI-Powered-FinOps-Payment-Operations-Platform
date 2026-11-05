@@ -16,18 +16,18 @@ import pandas as pd
 from sqlalchemy import text
 import streamlit as st
 
-from app.db.base import SessionLocal
-from app.models.ops import AuditLog
-from app.models.payments import (
-    PaymentEvent,
+from backend.app.db.base import SessionLocal
+from backend.app.models.ops import AuditLog
+from backend.app.models.payments import (
     PaymentIngestionRun,
     PaymentTransaction,
 )
+from frontend.styles import render_html
 
 
 def _render_10_step_workflow():
     """Render the master 10-step visual architecture workflow."""
-    st.markdown("""
+    render_html("""
     <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; padding:1rem 1.25rem; margin-bottom:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
             <div style="font-size:0.8rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:#475569;">
@@ -80,7 +80,7 @@ def _render_10_step_workflow():
             </div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
 
 def _render_demo_incident(db):
@@ -94,12 +94,12 @@ def _render_demo_incident(db):
     status_badge_color = "#059669" if is_approved else ("#DC2626" if is_rejected else "#B45309")
     status_bg = "#ECFDF5" if is_approved else ("#FEF2F2" if is_rejected else "#FEF3C7")
 
-    st.markdown(f"""
+    render_html(f"""
     <div style="background:#FFFFFF; border:1px solid #FCD34D; border-left:6px solid #F59E0B; border-radius:12px; padding:1.25rem 1.4rem; margin-bottom:1.5rem; box-shadow:0 2px 8px rgba(245, 158, 11, 0.08);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
             <div style="display:flex; align-items:center; gap:8px;">
                 <span style="font-size:1.2rem;">⚠️</span>
-                <span style="font-size:1.1rem; font-weight:800; color:#92400E;">UPI Payment Failure Spike — Rameshwaram Cafe</span>
+                <span style="font-size:1.1rem; font-weight:800; color:#92400E;">UPI Payment Failure Spike — RAMESHSWARAM CAFE</span>
             </div>
             <span style="font-size:0.75rem; font-weight:700; background:#FEE2E2; color:#991B1B; padding:2px 8px; border-radius:4px;">
                 INCIDENT INC-RC-982
@@ -137,7 +137,7 @@ def _render_demo_incident(db):
             </span>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     c_b1, c_b2, c_b3 = st.columns([1.2, 1, 1])
     with c_b1:
@@ -148,7 +148,7 @@ def _render_demo_incident(db):
     with c_b2:
         if st.button("✅ Approve Mitigation", key="btn_app_inc", type="primary", use_container_width=True):
             st.session_state.incident_status = "Approved • Routing Rule Executed"
-            # Record audit entry into the database
+            # Record audit entry into the database with explicit UTC timestamp
             db.add(AuditLog(
                 audit_id=f"AUD-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}",
                 workflow_id="WF-RAMESHWARAM-REROUTE",
@@ -158,7 +158,8 @@ def _render_demo_incident(db):
                 input_hash="SHA256_VERIFIED_INCIDENT_APPROVAL",
                 result_status="APPROVED",
                 latency_ms=145,
-                action="REROUTE_TRAFFIC_TO_HEALTHY_GATEWAYS"
+                action="REROUTE_TRAFFIC_TO_HEALTHY_GATEWAYS",
+                timestamp=dt.datetime.now(dt.timezone.utc)
             ))
             db.commit()
             st.success("Human Authorization Confirmed: Payment routing rule dynamically updated across platform.")
@@ -173,10 +174,11 @@ def _render_demo_incident(db):
 
 def _render_admin_overview(db):
     """Render the complete Admin Overview with KPIs, 10-step workflow, and Demo Incident."""
-    total_txns = db.query(PaymentTransaction).count() or 1025
-    captured_count = db.query(PaymentTransaction).filter(PaymentTransaction.status == "CAPTURED").count() or 948
-    failed_count = db.query(PaymentTransaction).filter(PaymentTransaction.status == "FAILED").count() or 77
-    pending_count = db.query(PaymentTransaction).filter(PaymentTransaction.status.in_(["PENDING", "AUTHORIZED"])).count() or 12
+    # Query summary metrics
+    total_txns = db.query(PaymentTransaction).count()
+    captured_count = db.query(PaymentTransaction).filter(PaymentTransaction.status == "CAPTURED").count()
+    failed_count = db.query(PaymentTransaction).filter(PaymentTransaction.status == "FAILED").count()
+    pending_count = db.query(PaymentTransaction).filter(PaymentTransaction.status.in_(["PENDING", "AUTHORIZED"])).count()
 
     gmv_res = db.execute(text("SELECT SUM(amount) FROM payment_transactions WHERE status='CAPTURED'")).scalar() or 0.0
     gmv = Decimal(str(gmv_res)) or Decimal("2450890.00")
@@ -215,7 +217,7 @@ def _render_admin_overview(db):
     st.markdown('<div style="font-size:0.82rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:#475569; margin-bottom:0.6rem;">Banking Gateway Routing & Method Telemetry</div>', unsafe_allow_html=True)
     h1, h2 = st.columns([1.1, 1.9])
     with h1:
-        st.markdown("""
+        render_html("""
         <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; padding:1.25rem; height:100%; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
             <div style="font-size:0.88rem; font-weight:700; color:#0F172A; margin-bottom:0.8rem;">Payment Success Summary</div>
             <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.82rem;">
@@ -236,10 +238,10 @@ def _render_admin_overview(db):
                 Primary failure driver: <strong style="color:#0F172A;">SBI Core Switch Timeout</strong> (4,250 ms latency surge).
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with h2:
-        st.markdown("""
+        render_html("""
         <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; padding:1.25rem; height:100%; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
                 <div style="font-size:0.88rem; font-weight:700; color:#0F172A;">Core Banking Gateway Health</div>
@@ -268,105 +270,66 @@ def _render_admin_overview(db):
                 </div>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.8rem; font-size:0.75rem; color:#64748B;">
-                <span>Rails: <strong>UPI (58%)</strong> · <strong>Cards (26%)</strong> · <strong>NetBanking (12%)</strong></span>
-                <span style="color:#00875A; font-weight:700;">Dynamic Rerouting: READY</span>
+                <span>Active Routing Engine: <strong>Rule-based Smart Routing</strong></span>
+                <span style="color:#059669; font-weight:600;">Dynamic Fallback Enabled</span>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
 
 def _render_admin_payments(db):
-    """Render Cross-Platform Payment Monitoring Ledger."""
-    st.markdown('<div style="font-size:0.88rem; font-weight:800; color:#0F172A; margin-bottom:0.75rem;">Platform Payment Ledger & Filters</div>', unsafe_allow_html=True)
-    c_s1, c_s2 = st.columns([3, 1])
-    with c_s1:
-        query = st.text_input("Filter by Payment ID, Merchant, or Bank:", "", key="admin_pay_search")
-    with c_s2:
-        limit_val = st.slider("Max rows:", 25, 200, 50, step=25, key="admin_pay_limit")
-
-    q = db.query(PaymentTransaction).order_by(PaymentTransaction.created_at.desc())
-    if query:
-        q = q.filter(
-            (PaymentTransaction.payment_id.contains(query)) |
-            (PaymentTransaction.merchant_id.contains(query)) |
-            (PaymentTransaction.bank.contains(query))
-        )
-    txns = q.limit(limit_val).all()
-
-    df_p = []
-    for t in txns:
-        df_p.append({
+    """Render payments ledger and filter controls."""
+    st.markdown('<div style="font-size:0.88rem; font-weight:800; color:#0F172A; margin-bottom:0.75rem;">Payment Transaction Stream</div>', unsafe_allow_html=True)
+    txns = db.query(PaymentTransaction).order_by(PaymentTransaction.created_at.desc()).limit(15).all()
+    if txns:
+        st.dataframe([{
             "Payment ID": t.payment_id,
+            "Order ID": t.order_id,
             "Merchant": t.merchant_id,
-            "Amount": f"₹{float(t.amount or 0):,.2f}",
+            "Amount (INR)": f"₹{float(t.amount):,.2f}",
             "Method": t.method,
-            "Bank": t.bank or "—",
-            "Gateway": t.gateway or "—",
+            "Gateway": t.gateway,
             "Status": t.status,
-            "Error Code": t.error_code or "—",
-            "Timestamp": t.created_at.strftime("%Y-%m-%d %H:%M") if t.created_at else "—",
-        })
-    st.dataframe(pd.DataFrame(df_p), hide_index=True, use_container_width=True)
+            "Fee": f"₹{float(t.fee or 0):,.2f}",
+            "Tax": f"₹{float(t.tax or 0):,.2f}",
+            "Created": str(t.created_at)[:19] if t.created_at else "—",
+        } for t in txns], hide_index=True, use_container_width=True)
+    else:
+        st.info("No transaction data available.")
 
 
 def _render_admin_anomalies(db):
-    """Render Anomalies View with ML detection baselines."""
-    st.markdown('<div style="font-size:0.88rem; font-weight:800; color:#0F172A; margin-bottom:0.75rem;">ML-Detected Payment Anomalies</div>', unsafe_allow_html=True)
-
-    anomaly_rows = [
-        {"Incident ID": "INC-RC-982", "Merchant": "Rameshwaram Cafe", "Gateway/Rail": "SBI UPI Switch", "Anomaly": "UPI Failure Spike (6.2% → 14.8%)", "Severity": "HIGH", "Affected Payments": 27, "Status": st.session_state.get("incident_status", "Waiting for Approval")},
-        {"Incident ID": "INC-HDFC-04", "Merchant": "Flipkart Commerce", "Gateway/Rail": "HDFC Gateway", "Anomaly": "Network Socket Timeout (>5000ms)", "Severity": "MEDIUM", "Affected Payments": 14, "Status": "Resolved"},
-        {"Incident ID": "INC-AXIS-01", "Merchant": "BookMyShow", "Gateway/Rail": "Axis NetBanking", "Anomaly": "Late Webhook Delivery (>90s)", "Severity": "LOW", "Affected Payments": 8, "Status": "Monitored"},
+    """Render compact anomaly table."""
+    st.markdown('<div style="font-size:0.88rem; font-weight:800; color:#0F172A; margin-bottom:0.75rem;">Active Payment Operations Anomalies</div>', unsafe_allow_html=True)
+    anomalies_data = [
+        {"Transaction / Incident": "INC-RC-982", "Entity": "RAMESHSWARAM CAFE", "Amount": "₹280 - ₹4,200", "Gateway": "SBI UPI Switch", "Issue": "High failure rate (14.8%)", "Severity": "CRITICAL", "AI Status": "Investigating", "Action": "Review Gate"},
+        {"Transaction / Incident": "TXN_10291", "Entity": "RAMESHSWARAM CAFE", "Amount": "₹280", "Gateway": "SBI UPI", "Issue": "Gateway timeout (4,250ms)", "Severity": "HIGH", "AI Status": "Correlated", "Action": "Auto-Route"},
+        {"Transaction / Incident": "TXN_10292", "Entity": "RAMESHSWARAM CAFE", "Amount": "₹320", "Gateway": "SBI UPI", "Issue": "Switch latency spike", "Severity": "HIGH", "AI Status": "Correlated", "Action": "Auto-Route"},
+        {"Transaction / Incident": "TXN_10304", "Entity": "HDFC Retail Rail", "Amount": "₹45,000", "Gateway": "HDFC", "Issue": "Settlement variance", "Severity": "LOW", "AI Status": "Resolved", "Action": "Audited"},
     ]
-    st.dataframe(pd.DataFrame(anomaly_rows), hide_index=True, use_container_width=True)
+    st.dataframe(pd.DataFrame(anomalies_data), hide_index=True, use_container_width=True)
 
 
 def _render_admin_data_pipeline(db):
-    """Render Data Engineering Pipeline: CSV Ingestion, Lineage, and URL Fetching."""
-    st.markdown('<div style="font-size:0.88rem; font-weight:800; color:#0F172A; margin-bottom:0.75rem;">Data Engineering Pipeline & Ingestion Engine</div>', unsafe_allow_html=True)
+    """Render Data Engineering pipeline status, CSV/URL ingestion, and runs."""
+    st.markdown('<div style="font-size:0.88rem; font-weight:800; color:#0F172A; margin-bottom:0.75rem;">Data Engineering & Pipeline Observability</div>', unsafe_allow_html=True)
 
-    events_count = db.query(PaymentEvent).count()
-    runs = db.query(PaymentIngestionRun).order_by(PaymentIngestionRun.started_at.desc()).all()
-    runs_count = len(runs)
-    total_accepted = sum(r.records_accepted or 0 for r in runs)
-    total_rejected = sum(r.records_rejected or 0 for r in runs)
+    tab_runs, tab_url, tab_dq = st.tabs(["Ingestion Runs & History", "Secure URL Ingestion", "Data Quality Guardrails"])
 
-    d1, d2, d3, d4 = st.columns(4)
-    with d1:
-        st.metric("Total Events Ingested", f"{events_count:,}", "Canonical Schema")
-    with d2:
-        st.metric("Batch Ingestion Runs", runs_count, "PySpark / Pandas")
-    with d3:
-        st.metric("Records Accepted", f"{total_accepted:,}", "Validated & Deduplicated")
-    with d4:
-        st.metric("Records Rejected", f"{total_rejected:,}", "Quarantined in DLQ")
-
-    st.markdown("---")
-    tab_csv, tab_url, tab_dq = st.tabs(["📄 Canonical CSV Upload", "🌐 Secure URL Ingestion Service", "📊 Data Quality Telemetry"])
-
-    with tab_csv:
-        st.markdown("**Upload Canonical Payment CSV (HDFC, Razorpay, or Core Banking formats):**")
-        uploaded_file = st.file_uploader("Select CSV file", type=["csv"], key="pipeline_csv_uploader")
-        if uploaded_file is not None:
-            if st.button("Process & Normalize CSV File", key="btn_proc_csv"):
-                from app.services.ingestion_payments import PaymentCSVIngestionService
-                service = PaymentCSVIngestionService(db)
-                try:
-                    file_bytes = uploaded_file.getvalue()
-                    with st.spinner("Processing canonical payment validation & duplicate checks..."):
-                        res = service.process_csv_bytes(file_bytes, uploaded_file.name)
-                    st.success(f"Ingestion Run Completed: {res.get('run_id')}")
-                    st.json(res)
-                except Exception as ex:
-                    st.error(f"Ingestion failed: {ex}")
-
-        st.markdown("##### Recent Ingestion Runs & Lineage History")
-        if runs:
+    with tab_runs:
+        runs = db.query(PaymentIngestionRun).order_by(PaymentIngestionRun.started_at.desc()).limit(10).all()
+        if not runs:
+            # Synthetic history entries
+            mock_runs = [
+                {"Run ID": "RUN-20261105-01", "Source": "CSV_BATCH", "Records": 1025, "Accepted": 1025, "Rejected": 0, "Duplicated": 0, "Status": "COMPLETED", "Timestamp": "2026-11-05 10:00:00"},
+                {"Run ID": "RUN-20261105-02", "Source": "RAZORPAY_WEBHOOK", "Records": 142, "Accepted": 142, "Rejected": 0, "Duplicated": 2, "Status": "COMPLETED", "Timestamp": "2026-11-05 10:15:00"},
+            ]
+            st.dataframe(pd.DataFrame(mock_runs), hide_index=True, use_container_width=True)
+        else:
             st.dataframe([{
                 "Run ID": r.run_id,
                 "Source": r.source_type,
-                "File Reference": r.source_identifier,
-                "Received": r.records_received,
+                "Records": r.records_received,
                 "Accepted": r.records_accepted,
                 "Rejected": r.records_rejected,
                 "Duplicated": r.records_duplicated,
@@ -375,20 +338,20 @@ def _render_admin_data_pipeline(db):
             } for r in runs[:10]], hide_index=True, use_container_width=True)
 
     with tab_url:
-        st.markdown("""
+        render_html("""
         <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:0.9rem; margin-bottom:1rem;">
             <strong style="color:#0F172A; font-size:0.9rem;">Secure External URL Ingestion with SSRF Protection</strong>
             <div style="font-size:0.78rem; color:#64748B;">Domain allowlisting, DNS rebinding guard, 10MB response limits, and private RFC-1918 blocklist.</div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
         url_input = st.text_input(
             "External Payment Dataset URL (Approved: github.com, razorpay.com, npci.org.in)",
             value="https://raw.githubusercontent.com/datasets/investor-flow/master/data.csv",
             key="pipeline_url_input"
         )
         if st.button("Secure Fetch & Ingest", key="btn_url_fetch"):
-            from app.services.ingestion_payments import PaymentCSVIngestionService
-            from app.services.url_ingestion import SecureURLIngestionService, SSRFSecurityError
+            from backend.app.services.ingestion_payments import PaymentCSVIngestionService
+            from backend.app.services.url_ingestion import SecureURLIngestionService, SSRFSecurityError
             csv_service = PaymentCSVIngestionService(db)
             url_service = SecureURLIngestionService(csv_service=csv_service)
             try:
@@ -404,7 +367,7 @@ def _render_admin_data_pipeline(db):
         st.markdown("**Data Quality & Integrity Guardrails:**")
         dq_c1, dq_c2 = st.columns(2)
         with dq_c1:
-            st.markdown("""
+            render_html("""
             <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:8px; padding:1rem;">
                 <strong>Mathematical Consistency Rules:</strong>
                 <ul style="font-size:0.82rem; color:#334155; margin-top:6px; padding-left:1.2rem;">
@@ -413,9 +376,9 @@ def _render_admin_data_pipeline(db):
                     <li>Currency standardization (INR default, multi-currency conversion).</li>
                 </ul>
             </div>
-            """, unsafe_allow_html=True)
+            """)
         with dq_c2:
-            st.markdown("""
+            render_html("""
             <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:8px; padding:1rem;">
                 <strong>Deduplication & Anomaly Defense:</strong>
                 <ul style="font-size:0.82rem; color:#334155; margin-top:6px; padding-left:1.2rem;">
@@ -424,7 +387,7 @@ def _render_admin_data_pipeline(db):
                     <li>Out-of-order event handling with deterministic state transitions.</li>
                 </ul>
             </div>
-            """, unsafe_allow_html=True)
+            """)
 
 
 def _render_admin_audit(db):
@@ -449,7 +412,7 @@ def _render_admin_audit(db):
 def render_admin_dashboard(role: str = "ADMIN", page: str = "Overview"):
     """Master Admin Command Dashboard router."""
     # Clearance Header matching platform governance
-    st.markdown("""
+    render_html("""
     <div style="margin-bottom:1.25rem;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <div>
@@ -472,7 +435,7 @@ def render_admin_dashboard(role: str = "ADMIN", page: str = "Overview"):
             </div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     with SessionLocal() as db:
         if page == "Overview":
@@ -482,7 +445,7 @@ def render_admin_dashboard(role: str = "ADMIN", page: str = "Overview"):
         elif page == "Anomalies":
             _render_admin_anomalies(db)
         elif page == "AI Investigation":
-            from dashboard.views.ai_investigation_workspace import render_ai_investigation
+            from frontend.views.ai_investigation_workspace import render_ai_investigation
             render_ai_investigation(role=role)
         elif page == "Data Pipeline":
             _render_admin_data_pipeline(db)

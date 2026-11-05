@@ -11,8 +11,8 @@ Core Design Principles:
 import pandas as pd
 import streamlit as st
 
-from app.db.base import SessionLocal
-from app.models.payments import (
+from backend.app.db.base import SessionLocal
+from backend.app.models.payments import (
     PaymentTransaction,
     PaymentIncident,
 )

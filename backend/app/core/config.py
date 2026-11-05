@@ -2,6 +2,12 @@
 import os
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 PROJECT_ROOT = BACKEND_DIR.parent
 ROOT = BACKEND_DIR
@@ -41,7 +47,9 @@ class Settings:
     JWT_ALG: str = "HS256"
     JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "120"))
 
-    # --- Razorpay Webhook Integration -----------------------------------
+    # --- Razorpay Checkout & Webhook Integration ------------------------
+    RAZORPAY_KEY_ID: str = os.getenv("RAZORPAY_KEY_ID", "rzp_test_mock_finops_key")
+    RAZORPAY_KEY_SECRET: str = os.getenv("RAZORPAY_KEY_SECRET", "mock_finops_secret_opspilot")
     RAZORPAY_WEBHOOK_SECRET: str = os.getenv("RAZORPAY_WEBHOOK_SECRET", "test_secret_opspilot_2026")
 
     # --- SQL tool guardrails --------------------------------------------

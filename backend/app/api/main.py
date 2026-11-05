@@ -32,6 +32,7 @@ from app.services.data_generator import PaymentDataGenerator, SCENARIOS
 from app.services.data_quality import run_data_quality_audit
 from app.analytics.payment_analytics import PaymentAnalyticsEngine
 from app.api.webhooks import router as webhooks_router
+from app.api.checkout import router as checkout_router
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 setup_logging()
@@ -58,6 +59,7 @@ app = FastAPI(
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                    allow_headers=["*"])
 app.include_router(webhooks_router)
+app.include_router(checkout_router)
 
 _METRICS = {"requests": 0, "errors": 0, "latency_ms_total": 0}
 
