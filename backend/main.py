@@ -1,4 +1,4 @@
-"""OpsPilot FastAPI Server Entry Point."""
+"""PayBridge FastAPI Server Entry Point."""
 
 import sys
 from pathlib import Path

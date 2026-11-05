@@ -25,7 +25,7 @@ MONTHS = ["2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09"]
 def main():
     t0 = time.time()
     print("=" * 64)
-    print("OpsPilot setup — synthetic data, local inference")
+    print("PayBridge setup — synthetic data, local inference")
     print("=" * 64)
 
     print("\n[1/6] Schema")

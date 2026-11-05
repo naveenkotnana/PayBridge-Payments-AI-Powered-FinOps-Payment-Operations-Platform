@@ -17,7 +17,10 @@ class Settings:
     # --- Database -------------------------------------------------------
     # Default SQLite in data directory so the project runs with zero setup.
     # Set DATABASE_URL to a postgresql+psycopg2://... string to use Postgres.
-    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{DATA_DIR / 'opspilot.db'}")
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        f"sqlite:///{DATA_DIR / ('paybridge.db' if (DATA_DIR / 'paybridge.db').exists() else 'opspilot.db')}"
+    )
 
     # --- Ollama (local only, no paid APIs) ------------------------------
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")

@@ -33,7 +33,7 @@ def render_overview(role: str = "ADMIN"):
         <div>
             <div style="display:flex; align-items:center; gap:8px;">
                 <span style="font-size:1.4rem;">⚡</span>
-                <span style="font-size:1.35rem; font-weight:800; color:#0F172A; letter-spacing:-0.02em;">OpsPilot Payments</span>
+                <span style="font-size:1.35rem; font-weight:800; color:#0F172A; letter-spacing:-0.02em;">PayBridge Payments</span>
                 <span class="fintech-badge badge-pass" style="background:#ECFDF5; color:#047857; font-weight:700;">PRODUCTION RUNNING</span>
             </div>
             <div style="font-size:0.85rem; color:#64748B; margin-top:2px;">

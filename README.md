@@ -1,7 +1,7 @@
-# ⚡ OpsPilot — Intelligent Payment Operations & Financial Intelligence Platform
+# ⚡ PayBridge — Intelligent Payment Operations & Financial Intelligence Platform
 
 <p align="center">
-  <img src="screenshots/operations_overview.png" alt="OpsPilot Payment Operations Overview" width="940" style="border-radius: 12px; box-shadow: 0 12px 36px rgba(0,0,0,0.2);" />
+  <img src="screenshots/operations_overview.png" alt="PayBridge Payment Operations Overview" width="940" style="border-radius: 12px; box-shadow: 0 12px 36px rgba(0,0,0,0.2);" />
 </p>
 
 <p align="center">
@@ -60,7 +60,7 @@
 > **What happens when SBI UPI drops by just 3% during a Friday evening flash sale?**  
 > **₹50 Lakhs in failed checkouts, panicking customers, and blind order cancellations.**
 >
-> In high-scale payment processing, core banking switches (SBI, HDFC, ICICI, Axis) operate as black boxes. When an upstream switch experiences latency spikes, traditional systems fail silently or trigger customer double-debits. **OpsPilot** continuously monitors switch telemetry, detects degradations in real time, issues fulfillment hold advisories to merchants, and conducts agentic root-cause investigations grounded in Standard Operating Procedures (SOPs).
+> In high-scale payment processing, core banking switches (SBI, HDFC, ICICI, Axis) operate as black boxes. When an upstream switch experiences latency spikes, traditional systems fail silently or trigger customer double-debits. **PayBridge** continuously monitors switch telemetry, detects degradations in real time, issues fulfillment hold advisories to merchants, and conducts agentic root-cause investigations grounded in Standard Operating Procedures (SOPs).
 
 ```
                       ┌────────────────────────────────────────────────────────┐
@@ -69,7 +69,7 @@
                                                   │ Latency Surge (>4,200 ms)
                                                   ▼
                       ┌────────────────────────────────────────────────────────┐
-                      │       OpsPilot Real-Time Anomaly Detection Engine      │
+                      │       PayBridge Real-Time Anomaly Detection Engine      │
                       │       (IsolationForest Outlier + Deterministic Rules)  │
                       └───────────────────────────┬────────────────────────────┘
                                                   │
@@ -89,7 +89,7 @@
 
 ## 💼 2. Recruiter & Architecture Competency Matrix
 
-| Engineering Competency | How It Is Demonstrated in OpsPilot | Verified Artifacts |
+| Engineering Competency | How It Is Demonstrated in PayBridge | Verified Artifacts |
 | :--- | :--- | :--- |
 | **Distributed Systems & Event Ingestion** | Event-driven pipeline handling idempotency keys, out-of-order event reconciliation, HMAC-SHA256 signature verification, and state machine transitions. | `backend/app/api/webhooks.py`<br>`backend/app/services/ingestion_payments.py` |
 | **Data Engineering & Lineage** | Multi-schema payment CSV mapper with deterministic column synonyms, timestamp parsing, duplicate isolation, rejected record reporting, and run lineage. | `backend/app/services/ingestion_payments.py`<br>`tests/unit/test_payment_csv_ingestion.py` |
@@ -218,26 +218,26 @@ Multi-tenant frontend built with Streamlit (`frontend/dashboard.py`), organized 
 
 ## 🎬 5. Interactive SBI UPI Incident Demonstration
 
-The platform includes a real-time 6-step walkthrough demonstrating how OpsPilot prevents merchant fulfillment losses during an issuing bank switch outage:
+The platform includes a real-time 6-step walkthrough demonstrating how PayBridge prevents merchant fulfillment losses during an issuing bank switch outage:
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Customer as Aarav Sharma
     participant Swiggy as Swiggy App
-    participant OpsPilot as OpsPilot Engine
+    participant PayBridge as PayBridge Engine
     participant Bank as SBI UPI Switch
 
     Customer->>Swiggy: Initiates ₹2,500 Order (SWIGGY-FOOD-49120)
     Swiggy->>Bank: Routes UPI Payment
     Note over Bank: SBI Core Banking Timeout (4,250 ms)
-    Bank-->>OpsPilot: Stalls in PENDING state
-    OpsPilot->>OpsPilot: Correlates 42 Simultaneous SBI Failures (₹1,05,000 Exposure)
-    OpsPilot->>Swiggy: [Advisory] "HOLD FULFILLMENT: Do not dispatch food order yet"
+    Bank-->>PayBridge: Stalls in PENDING state
+    PayBridge->>PayBridge: Correlates 42 Simultaneous SBI Failures (₹1,05,000 Exposure)
+    PayBridge->>Swiggy: [Advisory] "HOLD FULFILLMENT: Do not dispatch food order yet"
     Note over Swiggy: Order marked HOLD (Prevents ₹2,500 inventory loss)
-    OpsPilot->>OpsPilot: AI Agent Attributes Failure to SBI Switch Latency
-    Bank-->>OpsPilot: Late Webhook Confirms Success (payment.captured)
-    OpsPilot->>Swiggy: [Notification] Status flipped to CAPTURED. Safe to dispatch.
+    PayBridge->>PayBridge: AI Agent Attributes Failure to SBI Switch Latency
+    Bank-->>PayBridge: Late Webhook Confirms Success (payment.captured)
+    PayBridge->>Swiggy: [Notification] Status flipped to CAPTURED. Safe to dispatch.
     Swiggy->>Customer: Order confirmed & kitchen begins preparation!
 ```
 
@@ -332,8 +332,8 @@ The platform's local RAG store (`backend/app/rag/store.py`) indexes real-world S
 
 ### 1. Clone & Set Up Virtual Environment
 ```bash
-git clone https://github.com/naveenkotnana/Deploy-OpsPilot-Razorpay-inspired-AI-FinOps-Platform.git
-cd Deploy-OpsPilot-Razorpay-inspired-AI-FinOps-Platform
+git clone https://github.com/naveenkotnana/Deploy-PayBridge-Razorpay-inspired-AI-FinOps-Platform.git
+cd Deploy-PayBridge-Razorpay-inspired-AI-FinOps-Platform
 
 # Create virtual environment
 python -m venv .venv
@@ -445,7 +445,7 @@ Agent & Security Benchmark:                       35/35 PASSED (100.0%)
 The repository follows a clean, intuitive layout separating backend APIs, frontend portals, ML models, test suites, and documentation:
 
 ```text
-Deploy-OpsPilot-Razorpay-inspired-AI-FinOps-Platform/
+Deploy-PayBridge-Razorpay-inspired-AI-FinOps-Platform/
 │
 ├── .github/workflows/         # Automated GitHub Actions CI/CD pipelines
 │   └── ci.yml                 # Lint, test, type check & docker build workflow

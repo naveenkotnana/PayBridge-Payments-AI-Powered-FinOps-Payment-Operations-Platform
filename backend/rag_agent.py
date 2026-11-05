@@ -1,4 +1,4 @@
-"""OpsPilot AI & RAG Agent — Root Entrypoint.
+"""PayBridge AI & RAG Agent — Root Entrypoint.
 
 This module provides direct access to the autonomous 10-node LangGraph
 investigation state machine and the Standard Operating Procedure (SOP) RAG index.
@@ -53,7 +53,7 @@ def run_investigation(alert_id: str = None, question: str = None, user_id: str =
 
 
 def main():
-    parser = argparse.ArgumentParser(description="OpsPilot AI Agent & RAG Copilot CLI")
+    parser = argparse.ArgumentParser(description="PayBridge AI Agent & RAG Copilot CLI")
     parser.add_argument("--search", "-s", type=str, help="Search payment SOPs via local RAG")
     parser.add_argument("--investigate", "-i", action="store_true", help="Run 10-node investigation on the latest alert")
     parser.add_argument("--alert-id", "-a", type=str, help="Specific alert ID to investigate")

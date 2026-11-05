@@ -1,4 +1,4 @@
-"""Machine Learning module for OpsPilot payment anomaly detection."""
+"""Machine Learning module for PayBridge payment anomaly detection."""
 
 from backend.app.ml.anomaly import (
     build_payment_features,

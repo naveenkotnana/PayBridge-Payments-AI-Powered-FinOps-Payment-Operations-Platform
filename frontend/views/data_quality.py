@@ -120,7 +120,7 @@ def render_data_quality(role: str):
                 "water_usage_data",
             ],
             index=0,
-            help="Select a specific table or let OpsPilot automatically match each file."
+            help="Select a specific table or let PayBridge automatically match each file."
         )
     with c2:
         uploaded_files = st.file_uploader(

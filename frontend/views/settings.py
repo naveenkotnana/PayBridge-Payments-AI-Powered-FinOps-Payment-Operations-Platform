@@ -172,7 +172,7 @@ def render_settings(role: str):
         k1, k2 = st.columns(2)
         with k1:
             st.text_input("Live Key ID", value="rzp_live_99201948ops01", disabled=True)
-            st.text_input("Webhook Endpoint", value="https://api.opspilot.local/v1/webhooks/settlements", disabled=True)
+            st.text_input("Webhook Endpoint", value="https://api.paybridge.local/v1/webhooks/settlements", disabled=True)
         with k2:
             st.text_input("Live Key Secret", value="sec_live_••••••••••••••••4920", type="password", disabled=True)
             st.text_input("Webhook HMAC-SHA256 Secret", value="whsec_••••••••••••••••8812", type="password", disabled=True)

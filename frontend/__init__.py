@@ -1,5 +1,5 @@
 # ruff: noqa: E402
-"""OpsPilot Frontend Package.
+"""PayBridge Frontend Package.
 
 Exposes Streamlit dashboard components and ensures compatibility with
 `dashboard.*` import references.

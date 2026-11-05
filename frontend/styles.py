@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Razorpay-inspired Fintech Visual Design System for OpsPilot Dashboard."""
+"""Razorpay-inspired Fintech Visual Design System for PayBridge Dashboard."""
 
 RAZORPAY_THEME_CSS = """
 <style>

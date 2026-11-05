@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Reusable Razorpay-inspired Fintech UI Components for OpsPilot Dashboard."""
+"""Reusable Razorpay-inspired Fintech UI Components for PayBridge Dashboard."""
 import datetime as dt
 import os
 import pandas as pd
@@ -28,7 +28,7 @@ def get_image_base64(path: str | Path) -> str:
 
 
 def api_call(method: str, path: str, **kw):
-    """Call the OpsPilot FastAPI backend with session token and RBAC propagation.
+    """Call the PayBridge FastAPI backend with session token and RBAC propagation.
     Includes in-process database fallback if the REST server is temporarily unreachable.
     """
     h = kw.pop("headers", {})

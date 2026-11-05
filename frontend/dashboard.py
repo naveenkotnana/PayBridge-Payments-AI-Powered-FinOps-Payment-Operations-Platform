@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # ruff: noqa: E402
-"""OpsPilot Payments — Modern FinTech Payment Operations & Intelligence Platform UI.
+"""PayBridge Payments — Modern FinTech Payment Operations & Intelligence Platform UI.
 
 Core Design Philosophy:
 - Simple > complex
@@ -62,7 +62,7 @@ from dashboard.views.customer_portal import render_customer_portal
 from dashboard.views.sbi_upi_demo import render_sbi_upi_demo
 
 st.set_page_config(
-    page_title="OpsPilot Payments — AI Payment Operations Platform",
+    page_title="PayBridge Payments — AI Payment Operations Platform",
     page_icon=":zap:",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -89,7 +89,7 @@ with st.sidebar:
     <div class="sidebar-brand-box">
         <div class="sidebar-brand-title">
             <span style="font-size:1.3rem;">⚡</span>
-            <span>OPSPILOT</span>
+            <span>PAYBRIDGE</span>
             <span class="sidebar-brand-badge" style="background:#00875A;">PAYMENTS</span>
         </div>
         <div class="sidebar-brand-sub">AI-Powered Payment Operations</div>

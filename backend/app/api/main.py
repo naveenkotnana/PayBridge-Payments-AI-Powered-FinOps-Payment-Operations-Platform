@@ -1,4 +1,4 @@
-"""OpsPilot REST API. Synthetic data only. Local Ollama only. No paid APIs."""
+"""PayBridge REST API. Synthetic data only. Local Ollama only. No paid APIs."""
 from contextlib import asynccontextmanager
 import datetime as dt
 import json
@@ -49,7 +49,7 @@ async def _lifespan(application):
 
 
 app = FastAPI(
-    title="OpsPilot API",
+    title="PayBridge API",
     version="2.0",
     lifespan=_lifespan,
     description="AI Operations Workflow Automation & Intelligence Platform. "
@@ -87,7 +87,7 @@ def root():
     html_file = STATIC_DIR / "index.html"
     if html_file.exists():
         return FileResponse(html_file, media_type="text/html")
-    return HTMLResponse("<h1>OpsPilot API is running</h1><p>Visit <a href='/docs'>/docs</a></p>")
+    return HTMLResponse("<h1>PayBridge API is running</h1><p>Visit <a href='/docs'>/docs</a></p>")
 
 
 @app.get("/index.html", response_class=HTMLResponse, include_in_schema=False)

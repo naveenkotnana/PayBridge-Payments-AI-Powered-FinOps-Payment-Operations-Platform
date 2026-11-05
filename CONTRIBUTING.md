@@ -1,6 +1,6 @@
-# Contributing to OpsPilot
+# Contributing to PayBridge
 
-Thank you for your interest in contributing to **OpsPilot — AI-Powered Payment Operations & FinOps Intelligence Platform**!
+Thank you for your interest in contributing to **PayBridge — AI-Powered Payment Operations & FinOps Intelligence Platform**!
 
 ## Repository Architecture
 
@@ -50,8 +50,8 @@ The repository is organized into a clean, modern modular structure:
 ### 2. Environment Setup
 ```bash
 # Clone the repository
-git clone https://github.com/naveenkotnana/Deploy-OpsPilot-Razorpay-inspired-AI-FinOps-Platform.git
-cd Deploy-OpsPilot-Razorpay-inspired-AI-FinOps-Platform
+git clone https://github.com/naveenkotnana/Deploy-PayBridge-Razorpay-inspired-AI-FinOps-Platform.git
+cd Deploy-PayBridge-Razorpay-inspired-AI-FinOps-Platform
 
 # Create a virtual environment
 python -m venv .venv

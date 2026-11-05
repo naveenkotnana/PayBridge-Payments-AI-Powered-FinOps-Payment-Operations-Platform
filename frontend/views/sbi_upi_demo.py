@@ -28,7 +28,7 @@ def render_sbi_upi_demo(role: str = "ADMIN"):
                     Live SBI UPI Pending Lifecycle Demonstration
                 </h1>
                 <p style="color:#64748B; font-size:0.92rem; margin-top:4px;">
-                    Experience how OpsPilot handles a real-world ₹2,500 SBI UPI bank delay across all four platform personas.
+                    Experience how PayBridge handles a real-world ₹2,500 SBI UPI bank delay across all four platform personas.
                 </p>
             </div>
             <div style="text-align:right;">
