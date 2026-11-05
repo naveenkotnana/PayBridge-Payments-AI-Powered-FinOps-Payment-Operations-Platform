@@ -49,6 +49,7 @@ def render_ai_investigation(role: str = "ANALYST"):
         st.markdown("### 🔍 Select or Enter Operational Inquiry")
 
         sample_prompts = [
+            "Why are UPI payments failing at Rameshwaram Cafe between 10:10 AM and 10:25 AM?",
             "Why are SBI UPI payments failing between 11:05 AM and 11:10 AM?",
             "Investigate HDFC Gateway timeout spike and calculate merchant exposure.",
             "Analyze reconciliation discrepancies and MDR mismatches across active merchants.",

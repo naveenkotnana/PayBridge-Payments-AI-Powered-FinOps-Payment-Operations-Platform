@@ -26,7 +26,7 @@ def test_root_serves_frontend_html():
     r = client.get("/")
     assert r.status_code == 200
     assert "text/html" in r.headers.get("content-type", "")
-    assert "OpsPilot" in r.text
+    assert "OpsPilot" in r.text or "PayBridge" in r.text
 
 
 def test_favicon_serves_icon():

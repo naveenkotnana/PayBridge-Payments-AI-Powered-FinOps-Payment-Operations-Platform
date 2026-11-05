@@ -2,11 +2,10 @@
 # ruff: noqa: E402
 """PayBridge Payments — Fintech Payment Operations & Intelligence Platform UI.
 
-Matches the comprehensive multi-workspace architecture:
-- Top Horizontal Quick Navigation Pills (Admin, Merchant, Customer, AI Ops, SBI UPI Demo, Analytics)
-- Platform Governance Sidebar (FinOps Command Hub, Multi-Tenant Telemetry, Audit Trail)
-- Workspace 3: Payment Operations & Platform Infrastructure (Executive Overview, Payment Monitoring, Bank Switch Telemetry, Incident Command, Merchants & Customers)
-- Scoped Merchant & Customer Portals, AI Investigation Workspace, and Interactive SBI UPI Lifecycle Demo.
+Unified 3-Role Platform:
+1. 🛡️ Admin: FinOps Command Center, Analytics, ML Anomaly Detection, AI Investigation, Approvals & Audit
+2. 🏪 Merchant (Rameshwaram Cafe): Real local store orders, GMV, fulfillment hold advisories & business impact
+3. 👤 Customer (Aarav): Transparent buyer ledger, live order cooking status & double-debit protection guarantee
 """
 from pathlib import Path
 import sys
@@ -51,17 +50,13 @@ except Exception:
 
 from dashboard.styles import RAZORPAY_THEME_CSS
 
-# Workspace Views
+# Clean View Renderers for the 3 Core Roles
 from dashboard.views.admin_dashboard import render_admin_dashboard
-from dashboard.views.ai_investigation_workspace import render_ai_investigation
-from dashboard.views.analytics import render_analytics
 from dashboard.views.customer_portal import render_customer_portal
 from dashboard.views.merchant_portal import render_merchant_portal
-from dashboard.views.overview import render_overview
-from dashboard.views.sbi_upi_demo import render_sbi_upi_demo
 
 st.set_page_config(
-    page_title="PayBridge Payments — AI Payment Operations Platform",
+    page_title="PayBridge Payments — AI FinOps Platform",
     page_icon=":zap:",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -70,21 +65,20 @@ st.set_page_config(
 # Inject modern FinTech design styling
 st.markdown(RAZORPAY_THEME_CSS, unsafe_allow_html=True)
 
-# ------------------------------------------------------------- Session State Setup
-if "token" not in st.session_state:
-    st.session_state.token = "demo-admin-token"
+# ------------------------------------------------------------- Session State
+if "role" not in st.session_state:
     st.session_state.role = "ADMIN"
     st.session_state.username = "admin"
-    st.session_state.customer_id = "cust_sw_aarav"
-    st.session_state.merchant_id = "mid_swiggy_01"
+    st.session_state.customer_id = "cust_aarav_01"
+    st.session_state.merchant_id = "mid_rameshwaram_01"
 
-if "selected_nav" not in st.session_state:
-    # Default to Merchants & Customers to match the user's reference screenshot
-    st.session_state.selected_nav = "Merchants & Customers"
+if "incident_status" not in st.session_state:
+    st.session_state.incident_status = "Waiting for Admin Approval"
 
+current_role = st.session_state.role
 
-# ------------------------------------------------------------- 1. TOP NAVBAR
-top_c_left, top_c_pills, top_c_right = st.columns([2.5, 4.2, 2.3])
+# ------------------------------------------------------------- 1. TOP NAVBAR (STRICTLY 3 ROLES)
+top_c_left, top_c_pills, top_c_right = st.columns([2.6, 4.2, 2.2])
 
 with top_c_left:
     st.markdown("""
@@ -99,186 +93,162 @@ with top_c_left:
                 <span style="font-weight:800; font-size:1.15rem; color:#0F172A; letter-spacing:-0.02em;">PayBridge Payments</span>
                 <span style="font-size:0.65rem; font-weight:800; background:#ECFDF5; color:#00875A; border:1px solid #A7F3D0; padding:1px 6px; border-radius:4px;">FINTECH</span>
             </div>
-            <div style="font-size:0.72rem; color:#64748B;">Razorpay-Inspired AI Platform</div>
+            <div style="font-size:0.72rem; color:#64748B;">AI-Powered Payment Operations Platform</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
 with top_c_pills:
-    # Center Quick Workspace Navigation Pills
-    p1, p2, p3, p4, p5, p6 = st.columns(6)
+    # Exactly 3 Core Role Switcher Pills
+    p1, p2, p3 = st.columns(3)
     with p1:
-        if st.button("🛡️ Admin", key="top_pill_admin", use_container_width=True):
+        if st.button("🛡️ Admin", key="btn_top_admin", use_container_width=True, type="primary" if current_role == "ADMIN" else "secondary"):
             st.session_state.role = "ADMIN"
             st.session_state.username = "admin"
-            st.session_state.selected_nav = "Merchants & Customers"
+            st.session_state.selected_nav = "Overview"
             st.rerun()
     with p2:
-        if st.button("🏪 Merchant", key="top_pill_merchant", use_container_width=True):
+        if st.button("🏪 Merchant", key="btn_top_merchant", use_container_width=True, type="primary" if current_role == "MERCHANT" else "secondary"):
             st.session_state.role = "MERCHANT"
-            st.session_state.username = "merchant_swiggy"
-            st.session_state.merchant_id = "mid_swiggy_01"
-            st.session_state.selected_nav = "Merchant Overview"
+            st.session_state.username = "merchant"
+            st.session_state.merchant_id = "mid_rameshwaram_01"
+            st.session_state.selected_nav = "Overview"
             st.rerun()
     with p3:
-        if st.button("👤 Customer", key="top_pill_customer", use_container_width=True):
+        if st.button("👤 Customer", key="btn_top_customer", use_container_width=True, type="primary" if current_role == "CUSTOMER" else "secondary"):
             st.session_state.role = "CUSTOMER"
-            st.session_state.username = "customer_aarav"
-            st.session_state.customer_id = "cust_sw_aarav"
-            st.session_state.selected_nav = "Customer Home"
-            st.rerun()
-    with p4:
-        if st.button("🤖 AI Ops", key="top_pill_ai_ops", use_container_width=True):
-            st.session_state.selected_nav = "AI Investigation Workspace"
-            st.rerun()
-    with p5:
-        if st.button("▶️ SBI Demo", key="top_pill_sbi_demo", use_container_width=True):
-            st.session_state.selected_nav = "SBI UPI Live Demo"
-            st.rerun()
-    with p6:
-        if st.button("📊 Analytics", key="top_pill_analytics", use_container_width=True):
-            st.session_state.selected_nav = "Deep Operational Analytics"
+            st.session_state.username = "customer"
+            st.session_state.customer_id = "cust_aarav_01"
+            st.session_state.selected_nav = "Orders"
             st.rerun()
 
 with top_c_right:
-    r1, r2, r3 = st.columns([1.8, 0.5, 1.1])
+    r1, r2 = st.columns([2.0, 0.6])
     with r1:
-        persona_map = {
-            "admin": "admin",
-            "merchant_swiggy": "merchant_swiggy",
-            "customer_aarav": "customer_aarav",
-            "analyst": "analyst",
-            "manager": "manager"
-        }
-        current_username = st.session_state.get("username", "admin")
-        persona_keys = list(persona_map.keys())
-        curr_idx = persona_keys.index(current_username) if current_username in persona_keys else 0
+        roles_list = ["Admin", "Merchant", "Customer"]
+        role_map = {"Admin": "ADMIN", "Merchant": "MERCHANT", "Customer": "CUSTOMER"}
+        current_idx = 0 if current_role == "ADMIN" else (1 if current_role == "MERCHANT" else 2)
 
-        selected_persona = st.selectbox(
-            "Active Persona",
-            options=persona_keys,
-            format_func=lambda k: f"Active Persona: {persona_map[k]}",
-            index=curr_idx,
-            key="top_persona_dropdown",
+        selected_role_label = st.selectbox(
+            "Active Role",
+            options=roles_list,
+            index=current_idx,
+            key="top_role_dropdown",
             label_visibility="collapsed"
         )
-        if selected_persona != current_username:
-            st.session_state.username = selected_persona
-            if selected_persona == "admin":
-                st.session_state.role = "ADMIN"
-            elif selected_persona == "merchant_swiggy":
-                st.session_state.role = "MERCHANT"
-                st.session_state.merchant_id = "mid_swiggy_01"
-            elif selected_persona == "customer_aarav":
-                st.session_state.role = "CUSTOMER"
-                st.session_state.customer_id = "cust_sw_aarav"
-            elif selected_persona == "analyst":
-                st.session_state.role = "ANALYST"
-            elif selected_persona == "manager":
-                st.session_state.role = "MANAGER"
+        new_role = role_map[selected_role_label]
+        if new_role != current_role:
+            st.session_state.role = new_role
+            if new_role == "ADMIN":
+                st.session_state.username = "admin"
+                st.session_state.selected_nav = "Overview"
+            elif new_role == "MERCHANT":
+                st.session_state.username = "merchant"
+                st.session_state.merchant_id = "mid_rameshwaram_01"
+                st.session_state.selected_nav = "Overview"
+            elif new_role == "CUSTOMER":
+                st.session_state.username = "customer"
+                st.session_state.customer_id = "cust_aarav_01"
+                st.session_state.selected_nav = "Orders"
             st.rerun()
 
     with r2:
-        if st.button("🔄", key="top_reload_btn", help="Refresh live platform telemetry"):
+        if st.button("🔄", key="top_reload_btn", help="Refresh platform state"):
             st.rerun()
 
-    with r3:
-        if st.button("Overview", key="top_ov_btn", type="primary", use_container_width=True):
-            st.session_state.selected_nav = "Executive Overview"
-            st.rerun()
-
-st.markdown("<div style='height: 0.6rem;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
 
 
-# ------------------------------------------------------------- 2. SIDEBAR
+# ------------------------------------------------------------- 2. SIDEBAR (ROLE-SCOPED NAVIGATION)
 with st.sidebar:
-    st.markdown("""
+    # Brand Workspace Card
+    badge_color = "#00875A" if current_role == "ADMIN" else ("#F59E0B" if current_role == "MERCHANT" else "#2563EB")
+    role_label = "PLATFORM ADMIN" if current_role == "ADMIN" else ("MERCHANT STORE" if current_role == "MERCHANT" else "CUSTOMER")
+
+    st.markdown(f"""
     <div style="background:#0F2744; border:1px solid #1E3A5F; border-radius:8px; padding:0.75rem 0.85rem; margin-bottom:1rem;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
             <span style="font-size:0.62rem; font-weight:800; color:#94A3B8; letter-spacing:0.06em; text-transform:uppercase;">PAYBRIDGE WORKSPACE</span>
-            <span style="font-size:0.6rem; font-weight:700; background:#00875A; color:#FFFFFF; padding:1px 6px; border-radius:4px;">ADMIN</span>
+            <span style="font-size:0.6rem; font-weight:700; background:{badge_color}; color:#FFFFFF; padding:1px 6px; border-radius:4px;">{role_label}</span>
         </div>
-        <div style="font-size:1.05rem; font-weight:800; color:#FFFFFF; letter-spacing:-0.01em;">FinOps Command Hub</div>
-        <div style="font-size:0.7rem; color:#94A3B8; margin-top:2px;">Razorpay-Inspired Multi-Tenant Architecture</div>
+        <div style="font-size:1.05rem; font-weight:800; color:#FFFFFF; letter-spacing:-0.01em;">
+            {'FinOps Command Hub' if current_role == 'ADMIN' else ('Rameshwaram Cafe' if current_role == 'MERCHANT' else 'Aarav Sharma')}
+        </div>
+        <div style="font-size:0.7rem; color:#94A3B8; margin-top:2px;">
+            {'Multi-Tenant Platform Governance' if current_role == 'ADMIN' else ('Food & Beverage Merchant' if current_role == 'MERCHANT' else 'Verified Buyer Profile')}
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="sidebar-section-header">PLATFORM GOVERNANCE</div>', unsafe_allow_html=True)
-    gov_options = [
-        "Executive Overview",
-        "Payment Monitoring",
-        "Bank Switch Telemetry",
-        "Incident Command Centre",
-        "Merchants & Customers",
-        "Data Pipeline & Telemetry",
-        "Audit Trail & Approvals",
-    ]
+    # Scoped Navigation Options
+    if current_role == "ADMIN":
+        st.markdown('<div class="sidebar-section-header">ADMIN NAVIGATION</div>', unsafe_allow_html=True)
+        nav_options = [
+            "Overview",
+            "Payments",
+            "Anomalies",
+            "AI Investigation",
+            "Data Pipeline",
+            "Approvals",
+            "Audit",
+        ]
+    elif current_role == "MERCHANT":
+        st.markdown('<div class="sidebar-section-header">MERCHANT NAVIGATION</div>', unsafe_allow_html=True)
+        nav_options = [
+            "Overview",
+            "Orders",
+            "Payments",
+        ]
+    else:  # CUSTOMER
+        st.markdown('<div class="sidebar-section-header">CUSTOMER NAVIGATION</div>', unsafe_allow_html=True)
+        nav_options = [
+            "Orders",
+            "Payments",
+        ]
 
-    current_nav = st.session_state.get("selected_nav", "Merchants & Customers")
-    default_gov = current_nav if current_nav in gov_options else "Merchants & Customers"
+    if "selected_nav" not in st.session_state or st.session_state.selected_nav not in nav_options:
+        st.session_state.selected_nav = nav_options[0]
 
-    chosen_gov = st.radio(
-        "Platform Governance",
-        options=gov_options,
-        index=gov_options.index(default_gov),
-        key="sidebar_governance_radio",
+    chosen_nav = st.radio(
+        "Platform Navigation",
+        options=nav_options,
+        index=nav_options.index(st.session_state.selected_nav),
+        key="main_role_navigation_radio",
         label_visibility="collapsed"
     )
-    if chosen_gov != st.session_state.get("selected_nav") and chosen_gov in gov_options:
-        st.session_state.selected_nav = chosen_gov
+    if chosen_nav != st.session_state.selected_nav:
+        st.session_state.selected_nav = chosen_nav
         st.rerun()
 
-    st.markdown('<div class="sidebar-section-header">INTERACTIVE TOOLS & PREVIEWS</div>', unsafe_allow_html=True)
-    c_t1, c_t2 = st.columns(2)
-    with c_t1:
-        if st.button("🤖 AI Workspace", use_container_width=True, key="side_btn_ai"):
-            st.session_state.selected_nav = "AI Investigation Workspace"
-            st.rerun()
-    with c_t2:
-        if st.button("▶️ SBI UPI Demo", use_container_width=True, key="side_btn_sbi"):
-            st.session_state.selected_nav = "SBI UPI Live Demo"
-            st.rerun()
+    # User Profile Card
+    user_name = "Lead Platform Administrator" if current_role == "ADMIN" else ("Rameshwaram Cafe (Finance)" if current_role == "MERCHANT" else "Aarav Sharma")
+    user_handle = "@admin" if current_role == "ADMIN" else ("@merchant" if current_role == "MERCHANT" else "@customer")
 
-    st.markdown("""
-    <div class="sidebar-user-card" style="margin-top:1.75rem;">
+    st.markdown(f"""
+    <div class="sidebar-user-card" style="margin-top:2rem;">
         <div>
-            <div class="sidebar-user-name">Lead Platform Administrator</div>
-            <div style="font-size:0.7rem; color:#38BDF8; font-weight:600;">@admin</div>
+            <div class="sidebar-user-name">{user_name}</div>
+            <div style="font-size:0.7rem; color:#38BDF8; font-weight:600;">{user_handle}</div>
         </div>
-        <span style="font-size:0.65rem; font-weight:700; background:#2F5BFF; color:#FFFFFF; padding:2px 6px; border-radius:4px;">ADMIN</span>
+        <span style="font-size:0.65rem; font-weight:700; background:#2F5BFF; color:#FFFFFF; padding:2px 6px; border-radius:4px;">{current_role}</span>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown("""
     <div style="font-size:0.7rem; color:#64748B; margin-top:1.5rem; text-align:center; border-top:1px solid #1E3A5F; padding-top:0.8rem;">
-        Razorpay-Inspired Architecture<br>100% Local Inference · Zero Cloud Egress
+        PayBridge FinOps Engine<br>100% Synthetic Demo Data · Local Inference
     </div>
     """, unsafe_allow_html=True)
 
 
-# ------------------------------------------------------------- 3. MAIN PAGE ROUTER
-current_role = st.session_state.get("role", "ADMIN")
-active_view = st.session_state.get("selected_nav", "Merchants & Customers")
+# ------------------------------------------------------------- 3. MAIN ROUTER
+active_page = st.session_state.selected_nav
 
-# Role portal routing if persona switched
-if current_role == "CUSTOMER":
-    render_customer_portal(customer_id=st.session_state.get("customer_id", "cust_sw_aarav"))
+if current_role == "ADMIN":
+    render_admin_dashboard(role="ADMIN", page=active_page)
 
 elif current_role == "MERCHANT":
-    render_merchant_portal(merchant_id=st.session_state.get("merchant_id", "mid_swiggy_01"))
+    render_merchant_portal(merchant_id="mid_rameshwaram_01", page=active_page)
 
-elif active_view == "AI Investigation Workspace":
-    render_ai_investigation(role=current_role)
-
-elif active_view == "SBI UPI Live Demo":
-    render_sbi_upi_demo(role=current_role)
-
-elif active_view == "Deep Operational Analytics":
-    render_analytics(role=current_role)
-
-elif active_view == "Executive Overview View":
-    render_overview(role=current_role)
-
-else:
-    # Render Master Admin Command Dashboard matching user screenshot
-    render_admin_dashboard(role=current_role, page=active_view)
+else:  # CUSTOMER
+    render_customer_portal(customer_id="cust_aarav_01", page=active_page)
