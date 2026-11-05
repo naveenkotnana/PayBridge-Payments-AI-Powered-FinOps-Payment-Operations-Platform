@@ -4,21 +4,23 @@
 Simple, human-readable customer experience:
 - Clear order summary and total: ₹280 (Masala Dosa × 2, Filter Coffee × 1)
 - Razorpay Standard Web Checkout Integration (checkout.js modal)
-- Transparent payment status and verification timeline.
+- Server-side HMAC-SHA256 Payment Verification
 - Protection guarantee: "Your money was not charged twice."
 """
-import hashlib
-import hmac
-import uuid
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
+from fastapi import HTTPException
 
+from backend.app.api.checkout import (
+    create_razorpay_order,
+    verify_razorpay_payment,
+    CreateOrderRequest,
+    VerifyPaymentRequest,
+)
 from backend.app.core.config import settings
 from backend.app.db.base import SessionLocal
-from backend.app.models.payments import (
-    Customer,
-)
+from backend.app.models.payments import Customer
 from frontend.styles import render_html
 
 
@@ -26,7 +28,7 @@ def render_customer_portal(customer_id: str = "cust_aarav_01", page: str = "Orde
     """Render the simplified, human-friendly Customer Portal for Aarav with Razorpay Checkout."""
     # Initialize session states for customer checkout
     if "aarav_payment_status" not in st.session_state:
-        st.session_state.aarav_payment_status = "PAID"  # Default clean demo state
+        st.session_state.aarav_payment_status = "PENDING"
     if "aarav_order_id" not in st.session_state:
         st.session_state.aarav_order_id = "order_RC10291"
     if "aarav_payment_id" not in st.session_state:
@@ -125,43 +127,47 @@ def render_customer_portal(customer_id: str = "cust_aarav_01", page: str = "Orde
 
             # Razorpay Checkout Actions Card
             st.markdown('<div style="font-size:0.85rem; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.75rem;">Razorpay Standard Web Checkout</div>', unsafe_allow_html=True)
-            
-            c_col1, c_col2, c_col3 = st.columns([1.5, 1.2, 1.2])
+
+            c_col1, c_col2 = st.columns([1.5, 1.2])
 
             with c_col1:
                 if st.button("💳 Pay ₹280 via Razorpay Modal", key="btn_open_rzp_modal", type="primary", use_container_width=True):
-                    # Launch Razorpay checkout standard modal via HTML component
-                    st.session_state.show_razorpay_modal = True
-
-            with c_col2:
-                if st.button("⚡ Simulate Verified Payment", key="btn_sim_verify_rzp", use_container_width=True):
-                    # Direct simulated payment verification
-                    new_pay_id = f"pay_{uuid.uuid4().hex[:10]}"
-                    new_ord_id = f"order_{uuid.uuid4().hex[:10]}"
-                    sig = hmac.new(settings.RAZORPAY_KEY_SECRET.encode(), f"{new_ord_id}|{new_pay_id}".encode(), hashlib.sha256).hexdigest()
-
-                    st.session_state.aarav_payment_status = "PAID"
-                    st.session_state.aarav_payment_id = new_pay_id
-                    st.session_state.aarav_order_id = new_ord_id
-                    st.session_state.aarav_signature = sig
-                    st.session_state.aarav_checkout_msg = {
-                        "type": "success",
-                        "text": f"✅ Payment of ₹280 successfully verified via Razorpay! Transaction ID: {new_pay_id}"
-                    }
+                    # Call backend create-order endpoint to generate authentic order_id
+                    try:
+                        ord_res = create_razorpay_order(CreateOrderRequest(
+                            amount=28000,
+                            currency="INR",
+                            receipt="RC-ORDER-10291",
+                            merchant_id="mid_rameshwaram_01",
+                            customer_id=customer_id
+                        ), db=db)
+                        st.session_state.aarav_order_id = ord_res.order_id
+                        st.session_state.show_razorpay_modal = True
+                        st.session_state.aarav_checkout_msg = {
+                            "type": "info",
+                            "text": f"Razorpay order initialized ({ord_res.order_id}). Complete payment in the modal."
+                        }
+                    except Exception as err:
+                        st.session_state.aarav_checkout_msg = {
+                            "type": "error",
+                            "text": f"Failed to create Razorpay order: {err}"
+                        }
                     st.rerun()
 
-            with c_col3:
+            with c_col2:
                 if st.button("🔄 Reset Order State", key="btn_reset_order_state", use_container_width=True):
                     st.session_state.aarav_payment_status = "PENDING"
+                    st.session_state.show_razorpay_modal = False
                     st.session_state.aarav_checkout_msg = {
                         "type": "info",
-                        "text": "Order reset to PENDING. Ready to test payment flow."
+                        "text": "Order reset to PENDING. Ready to initiate checkout."
                     }
                     st.rerun()
 
             # If user clicked the Razorpay modal button, inject the Standard Checkout checkout.js script
             if st.session_state.get("show_razorpay_modal", False):
                 rzp_key_id = settings.RAZORPAY_KEY_ID
+                cur_order_id = st.session_state.aarav_order_id
                 checkout_html = f"""
                 <!DOCTYPE html>
                 <html>
@@ -171,7 +177,7 @@ def render_customer_portal(customer_id: str = "cust_aarav_01", page: str = "Orde
                 <body>
                     <div style="font-family:sans-serif; text-align:center; padding:15px; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px;">
                         <p style="font-size:0.9rem; font-weight:600; color:#0F172A; margin:0 0 10px 0;">
-                            Opening Razorpay Standard Web Checkout for ₹280.00...
+                            Razorpay Standard Web Checkout (Order: {cur_order_id})
                         </p>
                         <button id="rzp-button1" style="background:#00875A; color:white; border:none; padding:8px 18px; border-radius:6px; font-weight:700; cursor:pointer;">
                             Click to Open Razorpay Popup
@@ -185,6 +191,7 @@ def render_customer_portal(customer_id: str = "cust_aarav_01", page: str = "Orde
                         "name": "RAMESHSWARAM CAFE",
                         "description": "Masala Dosa x 2, Filter Coffee x 1",
                         "image": "https://cdn-icons-png.flaticon.com/512/3075/3075977.png",
+                        "order_id": "{cur_order_id}",
                         "prefill": {{
                             "name": "Aarav",
                             "email": "aarav@example.com",
@@ -198,7 +205,7 @@ def render_customer_portal(customer_id: str = "cust_aarav_01", page: str = "Orde
                             "color": "#00875A"
                         }},
                         "handler": function (response){{
-                            alert("Payment Successful! Razorpay Payment ID: " + response.razorpay_payment_id);
+                            alert("Payment Successful! Verifying signature with backend...");
                         }},
                         "modal": {{
                             "ondismiss": function(){{
@@ -214,13 +221,51 @@ def render_customer_portal(customer_id: str = "cust_aarav_01", page: str = "Orde
                         rzp1.open();
                         e.preventDefault();
                     }};
-                    // Auto-open
                     try {{ rzp1.open(); }} catch(err) {{ console.log(err); }}
                     </script>
                 </body>
                 </html>
                 """
                 components.html(checkout_html, height=140)
+
+            # Manual / Test Signature Verification Gate
+            with st.expander("🔐 Server-Side Payment Verification (HMAC-SHA256 Gate)"):
+                st.caption("Submit payment credentials returned by Razorpay Standard Checkout for server verification:")
+                v_col1, v_col2 = st.columns(2)
+                with v_col1:
+                    in_payment_id = st.text_input("Razorpay Payment ID", value=st.session_state.aarav_payment_id, key="v_pay_id")
+                    in_order_id = st.text_input("Razorpay Order ID", value=st.session_state.aarav_order_id, key="v_ord_id")
+                with v_col2:
+                    in_sig = st.text_input("Razorpay Signature (HMAC-SHA256)", type="password", key="v_sig", help="Generated by Razorpay upon successful checkout")
+                    st.write("")
+                    if st.button("🛡️ Verify Payment with Backend", key="btn_exec_verification", type="primary", use_container_width=True):
+                        try:
+                            v_req = VerifyPaymentRequest(
+                                razorpay_payment_id=in_payment_id,
+                                razorpay_order_id=in_order_id,
+                                razorpay_signature=in_sig
+                            )
+                            v_res = verify_razorpay_payment(v_req, db=db)
+                            st.session_state.aarav_payment_status = "PAID"
+                            st.session_state.aarav_payment_id = in_payment_id
+                            st.session_state.aarav_order_id = in_order_id
+                            st.session_state.aarav_checkout_msg = {
+                                "type": "success",
+                                "text": f"✅ Payment Verified! {v_res.message} (Payment: {v_res.payment_id})"
+                            }
+                            st.rerun()
+                        except HTTPException as h_err:
+                            st.session_state.aarav_checkout_msg = {
+                                "type": "error",
+                                "text": f"❌ Verification Failed (HTTP {h_err.status_code}): {h_err.detail}"
+                            }
+                            st.rerun()
+                        except Exception as e:
+                            st.session_state.aarav_checkout_msg = {
+                                "type": "error",
+                                "text": f"❌ Verification Error: {e}"
+                            }
+                            st.rerun()
 
             # Transaction Timeline
             render_html('<div style="font-size:0.85rem; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.05em; margin:1.25rem 0 0.75rem 0;">Payment & Order Progress Timeline</div>')

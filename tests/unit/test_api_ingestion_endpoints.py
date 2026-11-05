@@ -55,9 +55,9 @@ def test_get_ingestion_runs_endpoint():
     assert any(r["run_id"] == run_id for r in data)
 
 
-def test_get_webhook_events_endpoint():
+def test_get_payment_events_endpoint():
     client = TestClient(app)
-    response = client.get("/api/v1/webhooks/events", headers=get_auth_header("USR-003"))
+    response = client.get("/api/v1/events", headers=get_auth_header("USR-003"))
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)

@@ -35,6 +35,10 @@ def main():
     print("\n[2/6] Ingestion + validation")
     ingest_all()
 
+    print("\n[2b/6] 50,000 Payment Platform Transactions Ingestion (10 Merchants)")
+    from backend.scripts.generate_and_ingest_50k import main as ingest_50k_dataset
+    ingest_50k_dataset()
+
     db = SessionLocal()
     print("\n[3/6] Revenue calculation")
     for m in MONTHS:

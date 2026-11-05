@@ -209,8 +209,11 @@ class PaymentCSVIngestionService:
             if missing_req:
                 raise ValueError(f"Cannot map critical required columns: {missing_req} from headers: {reader.fieldnames}")
 
-            # Collect existing IDs in database for duplicate detection
-            existing_tx_ids = set()
+            # Pre-load existing IDs in memory for high-performance O(1) duplicate & foreign-key lookups
+            existing_tx_ids = set(r[0] for r in self.db.query(PaymentTransaction.payment_id).all())
+            existing_cust_ids = set(r[0] for r in self.db.query(Customer.customer_id).all())
+            existing_order_ids = set(r[0] for r in self.db.query(PaymentOrder.order_id).all())
+
             rows_received = 0
             rows_accepted = 0
             rows_rejected = 0
@@ -220,8 +223,10 @@ class PaymentCSVIngestionService:
             db_txns = []
 
             # Ensure baseline default merchant exists
-            default_merchant = self.db.query(Merchant).filter(Merchant.merchant_id == "mid_swiggy_01").first()
-            default_mid = default_merchant.merchant_id if default_merchant else "mid_default_01"
+            default_merchant = self.db.query(Merchant).filter(Merchant.merchant_id == "mid_rameshwaram_01").first()
+            if not default_merchant:
+                default_merchant = self.db.query(Merchant).first()
+            default_mid = default_merchant.merchant_id if default_merchant else "mid_rameshwaram_01"
 
             for row_idx, row in enumerate(reader, start=2):
                 rows_received += 1
@@ -234,10 +239,8 @@ class PaymentCSVIngestionService:
                 if not raw_payment_id:
                     rejection_reason = "Missing payment_id"
 
-                # 2. Duplicate detection
-                elif raw_payment_id in existing_tx_ids or self.db.query(PaymentTransaction.payment_id).filter(
-                    PaymentTransaction.payment_id == raw_payment_id
-                ).first():
+                # 2. Duplicate detection (O(1) in-memory lookup)
+                elif raw_payment_id in existing_tx_ids:
                     rows_duplicated += 1
                     rejection_reason = f"Duplicate payment_id: {raw_payment_id}"
 
@@ -303,24 +306,21 @@ class PaymentCSVIngestionService:
                 net_amount = _dec(amt_dec - fee - tax)
 
                 # Ensure customer exists if customer_id provided
-                if customer_id:
-                    cust_exists = self.db.query(Customer.customer_id).filter(Customer.customer_id == customer_id).first()
-                    if not cust_exists:
-                        cust = Customer(
-                            customer_id=customer_id,
-                            merchant_id=merchant_id,
-                            name=row.get("customer_name", f"Customer {customer_id}"),
-                            email=row.get("email", f"{customer_id.lower()}@example.com"),
-                            contact="+919800000000",
-                            is_synthetic=True,
-                            data_source="CSV_IMPORT",
-                        )
-                        self.db.add(cust)
-                        self.db.flush()
+                if customer_id and customer_id not in existing_cust_ids:
+                    cust = Customer(
+                        customer_id=customer_id,
+                        merchant_id=merchant_id,
+                        name=row.get("customer_name", f"Customer {customer_id}"),
+                        email=row.get("email", f"{customer_id.lower()}@example.com"),
+                        contact="+919800000000",
+                        is_synthetic=True,
+                        data_source="CSV_IMPORT",
+                    )
+                    self.db.add(cust)
+                    existing_cust_ids.add(customer_id)
 
                 # Ensure order exists
-                order_exists = self.db.query(PaymentOrder.order_id).filter(PaymentOrder.order_id == order_id).first()
-                if not order_exists:
+                if order_id not in existing_order_ids:
                     ord_obj = PaymentOrder(
                         order_id=order_id,
                         merchant_id=merchant_id,
@@ -334,7 +334,7 @@ class PaymentCSVIngestionService:
                         created_at=tx_time - dt.timedelta(seconds=15),
                     )
                     self.db.add(ord_obj)
-                    self.db.flush()
+                    existing_order_ids.add(order_id)
 
                 # Build Transaction Model
                 tx = PaymentTransaction(
@@ -362,8 +362,8 @@ class PaymentCSVIngestionService:
                 existing_tx_ids.add(raw_payment_id)
                 rows_accepted += 1
 
-                # Flush periodically
-                if len(db_txns) >= 200:
+                # Flush periodically in performant chunks
+                if len(db_txns) >= 1000:
                     self.db.bulk_save_objects(db_txns)
                     self.db.commit()
                     db_txns = []
@@ -417,3 +417,6 @@ class PaymentCSVIngestionService:
         finally:
             if should_close:
                 f.close()
+
+    # Convenience alias
+    ingest_csv = ingest_csv_file

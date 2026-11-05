@@ -31,7 +31,6 @@ from app.services.data_availability import inspect_data_availability
 from app.services.data_generator import PaymentDataGenerator, SCENARIOS
 from app.services.data_quality import run_data_quality_audit
 from app.analytics.payment_analytics import PaymentAnalyticsEngine
-from app.api.webhooks import router as webhooks_router
 from app.api.checkout import router as checkout_router
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
@@ -58,7 +57,6 @@ app = FastAPI(
                 "No paid LLM APIs are used.")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                    allow_headers=["*"])
-app.include_router(webhooks_router)
 app.include_router(checkout_router)
 
 _METRICS = {"requests": 0, "errors": 0, "latency_ms_total": 0}
@@ -485,9 +483,10 @@ def get_ingestion_runs(limit: int = Query(20, ge=1, le=100), db: Session = Depen
     ]
 
 
-@app.get("/api/v1/webhooks/events", tags=["webhooks"])
-def get_webhook_events(limit: int = Query(50, ge=1, le=200), db: Session = Depends(get_db), user=Depends(require("view"))):
-    """Retrieve recent immutable payment events received via webhook gateway."""
+@app.get("/api/v1/events", tags=["events"])
+@app.get("/api/v1/payment-events", tags=["events"], include_in_schema=False)
+def get_payment_events(limit: int = Query(50, ge=1, le=200), db: Session = Depends(get_db), user=Depends(require("view"))):
+    """Retrieve recent immutable payment events recorded by the platform."""
     from app.models.payments import PaymentEvent
     evts = db.query(PaymentEvent).order_by(PaymentEvent.ingested_at.desc()).limit(limit).all()
     return [

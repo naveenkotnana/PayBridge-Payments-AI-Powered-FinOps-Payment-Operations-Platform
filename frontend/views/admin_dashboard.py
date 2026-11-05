@@ -322,7 +322,7 @@ def _render_admin_data_pipeline(db):
             # Synthetic history entries
             mock_runs = [
                 {"Run ID": "RUN-20261105-01", "Source": "CSV_BATCH", "Records": 1025, "Accepted": 1025, "Rejected": 0, "Duplicated": 0, "Status": "COMPLETED", "Timestamp": "2026-11-05 10:00:00"},
-                {"Run ID": "RUN-20261105-02", "Source": "RAZORPAY_WEBHOOK", "Records": 142, "Accepted": 142, "Rejected": 0, "Duplicated": 2, "Status": "COMPLETED", "Timestamp": "2026-11-05 10:15:00"},
+                {"Run ID": "RUN-20261105-02", "Source": "BANK_SWITCH_CALLBACK", "Records": 142, "Accepted": 142, "Rejected": 0, "Duplicated": 2, "Status": "COMPLETED", "Timestamp": "2026-11-05 10:15:00"},
             ]
             st.dataframe(pd.DataFrame(mock_runs), hide_index=True, use_container_width=True)
         else:
@@ -383,7 +383,7 @@ def _render_admin_data_pipeline(db):
                 <strong>Deduplication & Anomaly Defense:</strong>
                 <ul style="font-size:0.82rem; color:#334155; margin-top:6px; padding-left:1.2rem;">
                     <li>Natural key deduplication on <code>(merchant_id, payment_id)</code>.</li>
-                    <li>Webhook signature verification: HMAC-SHA256 with replay prevention.</li>
+                    <li>Payment signature verification: Server-side HMAC-SHA256 with replay prevention.</li>
                     <li>Out-of-order event handling with deterministic state transitions.</li>
                 </ul>
             </div>

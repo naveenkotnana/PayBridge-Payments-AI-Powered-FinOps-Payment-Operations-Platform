@@ -268,6 +268,8 @@ def render_top_header(title: str, subtitle: str, role: str, username: str = ""):
 
     role_titles = {
         "ADMIN": ("Platform Administrator", "LEVEL 3 GOVERNANCE", "badge-critical"),
+        "MERCHANT": ("Merchant Operations", "STORE CLEARANCE", "badge-high"),
+        "CUSTOMER": ("Verified Customer", "BUYER CLEARANCE", "badge-low"),
         "MANAGER": ("Operations Manager", "LEVEL 2 CLEARANCE", "badge-high"),
         "ANALYST": ("Revenue Operations Analyst", "LEVEL 1 CLEARANCE", "badge-low")
     }

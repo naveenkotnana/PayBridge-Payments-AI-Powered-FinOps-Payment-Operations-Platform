@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 """Razorpay-inspired Fintech Visual Design System for PayBridge Dashboard."""
+import textwrap
+
+import streamlit as st
 
 RAZORPAY_THEME_CSS = """
 <style>
@@ -955,9 +958,6 @@ div[data-testid="column"] button[kind="secondary"]:hover {
 
 </style>
 """
-
-import textwrap
-import streamlit as st
 
 
 def render_html(html_str: str) -> None:

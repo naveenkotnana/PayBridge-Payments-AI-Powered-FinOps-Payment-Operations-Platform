@@ -130,7 +130,7 @@ def render_merchant_portal(merchant_id: str = "mid_rameshwaram_01", page: str = 
             with m4:
                 st.metric("Failed Payments", today_failed, "⚠️ UPI Switch Timeouts")
             with m5:
-                st.metric("Pending Payments", today_pending, "⏱️ Awaiting Bank Webhook")
+                st.metric("Pending Payments", today_pending, "⏱️ Awaiting Bank Confirmation")
 
             st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
 

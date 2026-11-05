@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Settings & Admin Governance View — Razorpay-inspired Enterprise FinOps Administration."""
+"""Settings & Admin Governance View — FinOps Platform Administration."""
 import pandas as pd
 import streamlit as st
 
@@ -17,7 +17,7 @@ def render_settings(role: str):
     t_gov, t_infra, t_api, t_pipe = st.tabs([
         "🛡️ Access & Persona Governance",
         "⚡ Infrastructure Telemetry",
-        "🔑 FinOps API & Webhooks",
+        "🔑 FinOps API & Security Credentials",
         "⚙️ Pipeline & Model Controls"
     ])
 
@@ -26,75 +26,77 @@ def render_settings(role: str):
         st.markdown("""
         <div style="background:#FFFFFF; border:1px solid #E6EAF0; border-radius:10px; padding:1.25rem; margin-bottom:1.5rem;">
             <h3 style="font-size:1rem; font-weight:700; color:#0F172A; margin:0 0 0.25rem 0;">Role & Clearance Persona Switcher</h3>
-            <div style="font-size:0.8rem; color:#64748B; margin-bottom:1rem;">Switch between security personas to test clearance authorization gates:</div>
+            <div style="font-size:0.8rem; color:#64748B; margin-bottom:1rem;">Verified role-based view controls across platform actors:</div>
         """, unsafe_allow_html=True)
 
         c1, c2, c3 = st.columns(3)
         with c1:
-            is_active = (role == "ANALYST")
-            st.markdown(f"""
-            <div style="background:{'#F0FDF4' if is_active else '#F8FAFC'}; border:1px solid {'#86EFAC' if is_active else '#E2E8F0'}; border-radius:8px; padding:1rem; margin-bottom:0.75rem;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
-                    <strong style="color:#0F172A; font-size:0.9rem;">Operations Analyst</strong>
-                    <span class="fintech-badge {'badge-pass' if is_active else 'badge-low'}">{'ACTIVE' if is_active else 'LEVEL 1'}</span>
-                </div>
-                <div style="font-size:0.75rem; color:#64748B; line-height:1.4; min-height:48px;">
-                    Read operational telemetry, explore SQL models, and launch AI investigations. (Action approval restricted).
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            if not is_active:
-                if st.button("Switch to Analyst Persona", key="btn_sw_analyst", use_container_width=True):
-                    res, err = api_call("POST", "/auth/login", json={"username": "analyst", "password": "analyst123"})
-                    if not err and res:
-                        st.session_state.update(token=res["access_token"], role=res["role"], user_id=res["user_id"], username="analyst")
-                        st.rerun()
-            else:
-                st.markdown("<div style='text-align:center; font-size:0.8rem; font-weight:700; color:#16A34A; padding:6px;'>Current Active Persona</div>", unsafe_allow_html=True)
-
-        with c2:
-            is_active = (role == "MANAGER")
-            st.markdown(f"""
-            <div style="background:{'#F0FDF4' if is_active else '#F8FAFC'}; border:1px solid {'#86EFAC' if is_active else '#E2E8F0'}; border-radius:8px; padding:1rem; margin-bottom:0.75rem;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
-                    <strong style="color:#0F172A; font-size:0.9rem;">Operations Manager</strong>
-                    <span class="fintech-badge {'badge-pass' if is_active else 'badge-high'}">{'ACTIVE' if is_active else 'LEVEL 2'}</span>
-                </div>
-                <div style="font-size:0.75rem; color:#64748B; line-height:1.4; min-height:48px;">
-                    Full operational view, exception remediation, and human-in-the-loop approval gate authority.
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            if not is_active:
-                if st.button("Switch to Manager Persona", key="btn_sw_manager", use_container_width=True, type="primary"):
-                    res, err = api_call("POST", "/auth/login", json={"username": "manager", "password": "manager123"})
-                    if not err and res:
-                        st.session_state.update(token=res["access_token"], role=res["role"], user_id=res["user_id"], username="manager")
-                        st.rerun()
-            else:
-                st.markdown("<div style='text-align:center; font-size:0.8rem; font-weight:700; color:#16A34A; padding:6px;'>Current Active Persona</div>", unsafe_allow_html=True)
-
-        with c3:
             is_active = (role == "ADMIN")
             st.markdown(f"""
             <div style="background:{'#F0FDF4' if is_active else '#F8FAFC'}; border:1px solid {'#86EFAC' if is_active else '#E2E8F0'}; border-radius:8px; padding:1rem; margin-bottom:0.75rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
-                    <strong style="color:#0F172A; font-size:0.9rem;">Platform Administrator</strong>
-                    <span class="fintech-badge {'badge-pass' if is_active else 'badge-critical'}">{'ACTIVE' if is_active else 'LEVEL 3'}</span>
+                    <strong style="color:#0F172A; font-size:0.9rem;">🛡️ Admin</strong>
+                    <span class="fintech-badge {'badge-pass' if is_active else 'badge-critical'}">{'ACTIVE' if is_active else 'COMMAND'}</span>
                 </div>
                 <div style="font-size:0.75rem; color:#64748B; line-height:1.4; min-height:48px;">
-                    Full governance clearance: user security management, cryptographic audit ledger, and pipeline controls.
+                    FinOps operations, AI investigation, incident mitigation approval, data lineage, and audit logs.
                 </div>
             </div>
             """, unsafe_allow_html=True)
             if not is_active:
-                if st.button("Switch to Admin Persona", key="btn_sw_admin", use_container_width=True):
-                    res, err = api_call("POST", "/auth/login", json={"username": "admin", "password": "admin123"})
-                    if not err and res:
-                        st.session_state.update(token=res["access_token"], role=res["role"], user_id=res["user_id"], username="admin")
-                        st.rerun()
+                if st.button("Switch to Admin", key="btn_sw_admin", use_container_width=True):
+                    st.session_state.role = "ADMIN"
+                    st.session_state.username = "admin"
+                    st.session_state.selected_nav = "Overview"
+                    st.rerun()
             else:
-                st.markdown("<div style='text-align:center; font-size:0.8rem; font-weight:700; color:#16A34A; padding:6px;'>Current Active Persona</div>", unsafe_allow_html=True)
+                st.markdown("<div style='text-align:center; font-size:0.8rem; font-weight:700; color:#16A34A; padding:6px;'>Current Active Role</div>", unsafe_allow_html=True)
+
+        with c2:
+            is_active = (role == "MERCHANT")
+            st.markdown(f"""
+            <div style="background:{'#F0FDF4' if is_active else '#F8FAFC'}; border:1px solid {'#86EFAC' if is_active else '#E2E8F0'}; border-radius:8px; padding:1rem; margin-bottom:0.75rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+                    <strong style="color:#0F172A; font-size:0.9rem;">🏪 Merchant (Rameshwaram Cafe)</strong>
+                    <span class="fintech-badge {'badge-pass' if is_active else 'badge-high'}">{'ACTIVE' if is_active else 'STORE'}</span>
+                </div>
+                <div style="font-size:0.75rem; color:#64748B; line-height:1.4; min-height:48px;">
+                    Real-time order statuses, revenue settlement metrics, and store-level payment health.
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if not is_active:
+                if st.button("Switch to Merchant", key="btn_sw_merchant", use_container_width=True, type="primary"):
+                    st.session_state.role = "MERCHANT"
+                    st.session_state.username = "merchant"
+                    st.session_state.merchant_id = "mid_rameshwaram_01"
+                    st.session_state.selected_nav = "Overview"
+                    st.rerun()
+            else:
+                st.markdown("<div style='text-align:center; font-size:0.8rem; font-weight:700; color:#16A34A; padding:6px;'>Current Active Role</div>", unsafe_allow_html=True)
+
+        with c3:
+            is_active = (role == "CUSTOMER")
+            st.markdown(f"""
+            <div style="background:{'#F0FDF4' if is_active else '#F8FAFC'}; border:1px solid {'#86EFAC' if is_active else '#E2E8F0'}; border-radius:8px; padding:1rem; margin-bottom:0.75rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+                    <strong style="color:#0F172A; font-size:0.9rem;">👤 Customer (Aarav Sharma)</strong>
+                    <span class="fintech-badge {'badge-pass' if is_active else 'badge-low'}">{'ACTIVE' if is_active else 'BUYER'}</span>
+                </div>
+                <div style="font-size:0.75rem; color:#64748B; line-height:1.4; min-height:48px;">
+                    Razorpay Checkout order initiation, transparent transaction status, and double-debit refund tracking.
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if not is_active:
+                if st.button("Switch to Customer", key="btn_sw_customer", use_container_width=True):
+                    st.session_state.role = "CUSTOMER"
+                    st.session_state.username = "customer"
+                    st.session_state.customer_id = "cust_aarav_01"
+                    st.session_state.selected_nav = "Orders"
+                    st.rerun()
+            else:
+                st.markdown("<div style='text-align:center; font-size:0.8rem; font-weight:700; color:#16A34A; padding:6px;'>Current Active Role</div>", unsafe_allow_html=True)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -102,15 +104,15 @@ def render_settings(role: str):
         st.markdown("""
         <div style="background:#FFFFFF; border:1px solid #E6EAF0; border-radius:10px; padding:1.25rem; margin-bottom:1.5rem;">
             <h3 style="font-size:1rem; font-weight:700; color:#0F172A; margin:0 0 0.25rem 0;">Hierarchical RBAC Authorization Matrix</h3>
-            <div style="font-size:0.8rem; color:#64748B; margin-bottom:1rem;">Verified scope enforcement across platform endpoints:</div>
+            <div style="font-size:0.8rem; color:#64748B; margin-bottom:1rem;">Verified scope enforcement across platform actors:</div>
         """, unsafe_allow_html=True)
         rbac_matrix = [
-            {"Domain / Scope": "Overview & Revenue Analytics", "Analyst (L1)": "READ ONLY", "Manager (L2)": "READ ONLY", "Administrator (L3)": "READ + WRITE"},
-            {"Domain / Scope": "SQL Custom Named Models", "Analyst (L1)": "EXECUTE", "Manager (L2)": "EXECUTE", "Administrator (L3)": "AUTHOR + EXECUTE"},
-            {"Domain / Scope": "AI Investigation & RAG Agent", "Analyst (L1)": "QUERY", "Manager (L2)": "QUERY + ACTION PLAN", "Administrator (L3)": "FULL COPILOT"},
-            {"Domain / Scope": "Exception Remediation Approvals", "Analyst (L1)": "DENIED (403)", "Manager (L2)": "APPROVE / REJECT", "Administrator (L3)": "SUPERUSER OVERRIDE"},
-            {"Domain / Scope": "Cryptographic Audit Ledger", "Analyst (L1)": "DENIED (403)", "Manager (L2)": "READ ONLY", "Administrator (L3)": "VERIFY INTEGRITY"},
-            {"Domain / Scope": "Telemetry Data Ingestion / ETL", "Analyst (L1)": "VIEW GATES", "Manager (L2)": "VIEW GATES", "Administrator (L3)": "UPLOAD & TRIGGER"}
+            {"Domain / Scope": "Overview & Revenue Analytics", "Customer": "DENIED (403)", "Merchant": "STORE GMV ONLY", "Admin": "FULL REVENUE HUB"},
+            {"Domain / Scope": "Order Creation & Checkout", "Customer": "EXECUTE (₹280)", "Merchant": "RECEIVE ORDERS", "Admin": "MONITOR ONLY"},
+            {"Domain / Scope": "AI Investigation & RAG Agent", "Customer": "DENIED (403)", "Merchant": "SUMMARY ONLY", "Admin": "FULL COPILOT"},
+            {"Domain / Scope": "Exception Remediation Approvals", "Customer": "DENIED (403)", "Merchant": "DENIED (403)", "Admin": "APPROVE / REJECT"},
+            {"Domain / Scope": "Cryptographic Audit Ledger", "Customer": "DENIED (403)", "Merchant": "DENIED (403)", "Admin": "VERIFY INTEGRITY"},
+            {"Domain / Scope": "Telemetry Data Ingestion / 50K CSV", "Customer": "DENIED (403)", "Merchant": "DENIED (403)", "Admin": "TRIGGER & LINEAGE"}
         ]
         st.dataframe(pd.DataFrame(rbac_matrix), use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
@@ -161,25 +163,25 @@ def render_settings(role: str):
             st.json(m)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ------------------------------------------------ Tab 3: FinOps API & Webhooks
+    # ------------------------------------------------ Tab 3: FinOps API & Security Credentials
     with t_api:
         st.markdown("""
         <div style="background:#FFFFFF; border:1px solid #E6EAF0; border-radius:10px; padding:1.25rem; margin-bottom:1.5rem;">
-            <h3 style="font-size:1rem; font-weight:700; color:#0F172A; margin:0 0 0.25rem 0;">Razorpay-Compatible FinOps API Credentials</h3>
-            <div style="font-size:0.8rem; color:#64748B; margin-bottom:1rem;">API key pair and cryptographic webhook signatures for external ERP/billing integrations:</div>
+            <h3 style="font-size:1rem; font-weight:700; color:#0F172A; margin:0 0 0.25rem 0;">Razorpay Standard Web Checkout API Credentials</h3>
+            <div style="font-size:0.8rem; color:#64748B; margin-bottom:1rem;">API key pair and server-side HMAC-SHA256 signature verification configuration:</div>
         """, unsafe_allow_html=True)
 
         k1, k2 = st.columns(2)
         with k1:
-            st.text_input("Live Key ID", value="rzp_live_99201948ops01", disabled=True)
-            st.text_input("Webhook Endpoint", value="https://api.paybridge.local/v1/webhooks/settlements", disabled=True)
+            st.text_input("Razorpay Key ID", value="rzp_test_••••••••••••", disabled=True, help="Exposed safely to frontend checkout.js")
+            st.text_input("Order Creation Endpoint", value="POST /api/create-order", disabled=True)
         with k2:
-            st.text_input("Live Key Secret", value="sec_live_••••••••••••••••4920", type="password", disabled=True)
-            st.text_input("Webhook HMAC-SHA256 Secret", value="whsec_••••••••••••••••8812", type="password", disabled=True)
+            st.text_input("Razorpay Key Secret", value="••••••••••••••••••••", type="password", disabled=True, help="Kept strictly on server in .env")
+            st.text_input("Payment Verification Endpoint", value="POST /api/verify-payment", disabled=True)
 
         st.markdown("""
             <div style="font-size:0.78rem; color:#64748B; margin-top:0.5rem;">
-                🔐 Signatures verified using HMAC-SHA256. Automatic IP rate limiting enforced (120 req/min).
+                🔐 Server-side signature verified using <code>hmac.compare_digest(HMAC-SHA256(order_id + '|' + payment_id, secret))</code>. No webhooks required.
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -210,4 +212,3 @@ def render_settings(role: str):
                 st.success("RAG knowledge chunks synced!")
 
         st.markdown("</div>", unsafe_allow_html=True)
-

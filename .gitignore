@@ -12,3 +12,6 @@ venv/
 htmlcov/
 data/rejected/*.csv
 data/raw/ingestion_archive/*.csv
+backend/data/rejected/*.csv
+backend/data/raw/ingestion_archive/*.csv
+backend/data/raw/payment_platform_50000_transactions.csv

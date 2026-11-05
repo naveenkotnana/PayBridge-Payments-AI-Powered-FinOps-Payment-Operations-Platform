@@ -147,7 +147,7 @@ def verify_razorpay_payment(req: VerifyPaymentRequest, db: Session = Depends(get
     expected_sig = hmac.new(key_secret.encode("utf-8"), message, hashlib.sha256).hexdigest()
 
     is_valid = False
-    # Check HMAC digest in constant time
+    # Check HMAC digest in constant time using HMAC-SHA256
     if hmac.compare_digest(expected_sig.lower(), req.razorpay_signature.strip().lower()):
         is_valid = True
     else:
@@ -161,9 +161,7 @@ def verify_razorpay_payment(req: VerifyPaymentRequest, db: Session = Depends(get
             })
             is_valid = True
         except Exception:
-            # Fallback for dev mode simulation when using signature matching mock key
-            if req.razorpay_signature.startswith("mock_sig_") or req.razorpay_signature == "dev_test_signature":
-                is_valid = True
+            is_valid = False
 
     if not is_valid:
         raise HTTPException(
