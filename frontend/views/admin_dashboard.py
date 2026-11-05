@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Admin Dashboard — Razorpay-Inspired Role-Based Fintech Platform.
 
 Features:
@@ -5,29 +6,30 @@ Features:
 - Executive Overview across all merchants and banks.
 - Bank Switch Telemetry with root-cause attribution (Bank vs Gateway vs Network).
 - Incident Command Centre with financial exposure and resolution lifecycle.
-- Customer & Merchant Directory.
+- Customer & Merchant Directory (Registered Enterprise Merchants & Verified Customer Profiles).
 - Data Pipeline & Event Telemetry.
 - Cryptographic Audit Trail & Human Approval Queue.
 """
-import streamlit as st
 from decimal import Decimal
+import pandas as pd
 from sqlalchemy import text
+import streamlit as st
+
 from app.db.base import SessionLocal
-from app.models.payments import (
-    Merchant,
-    Customer,
-    PaymentTransaction,
-    PaymentIncident,
-    IncidentMerchant,
-    PaymentEvent,
-    PaymentIngestionRun,
-)
 from app.models.ops import AuditLog
+from app.models.payments import (
+    Customer,
+    IncidentMerchant,
+    Merchant,
+    PaymentEvent,
+    PaymentIncident,
+    PaymentIngestionRun,
+    PaymentTransaction,
+)
 
 
 def _render_admin_executive_overview(db):
     """Platform Executive Overview KPIs and gateway/method breakdowns."""
-    st.markdown("### Platform Executive Overview")
     total_txns = db.query(PaymentTransaction).count()
     captured_count = db.query(PaymentTransaction).filter(PaymentTransaction.status == "CAPTURED").count()
     failed_count = db.query(PaymentTransaction).filter(PaymentTransaction.status == "FAILED").count()
@@ -55,26 +57,34 @@ def _render_admin_executive_overview(db):
     with col5:
         st.metric("Active Incidents", active_incidents, f"{affected_mids} Affected Merchants")
 
-    st.markdown("---")
-    st.subheader("Platform Health Summary")
+    st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+
     p_c1, p_c2 = st.columns(2)
     with p_c1:
-        st.write("**Top Gateways by Volume:**")
+        st.markdown("""
+        <div class="fintech-content-card">
+            <div class="fintech-content-title">Core Gateway Health & Volume</div>
+        """, unsafe_allow_html=True)
         gw_rows = db.execute(text("""
             SELECT gateway, COUNT(*) as txns,
                    ROUND(100.0 * SUM(CASE WHEN status='CAPTURED' THEN 1 ELSE 0 END) / COUNT(*), 1) as sr
             FROM payment_transactions GROUP BY gateway
         """)).fetchall()
         st.dataframe([{"Gateway": r[0], "Attempts": r[1], "Success Rate": f"{r[2]}%"} for r in gw_rows], use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with p_c2:
-        st.write("**Payment Rails Share:**")
+        st.markdown("""
+        <div class="fintech-content-card">
+            <div class="fintech-content-title">Payment Rails Distribution</div>
+        """, unsafe_allow_html=True)
         m_rows = db.execute(text("""
             SELECT method, COUNT(*) as attempts,
                    ROUND(100.0 * SUM(CASE WHEN status='CAPTURED' THEN 1 ELSE 0 END) / COUNT(*), 1) as sr
             FROM payment_transactions GROUP BY method
         """)).fetchall()
         st.dataframe([{"Payment Method": r[0], "Transactions": r[1], "SR": f"{r[2]}%"} for r in m_rows], use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 def _render_admin_payment_monitoring(db):
@@ -98,10 +108,10 @@ def _render_admin_payment_monitoring(db):
             "Payment ID": t.payment_id,
             "Merchant": t.merchant_id,
             "Customer": t.customer_id or "—",
-            "Amount": f"₹{float(t.amount):,.2f}",
+            "Amount": f"₹{float(t.amount or 0):,.2f}",
             "Method": t.method,
             "Bank": t.bank or "—",
-            "Gateway": t.gateway,
+            "Gateway": t.gateway or "—",
             "Status": t.status,
             "Error": t.error_code or "—",
             "Timestamp": t.created_at.strftime("%Y-%m-%d %H:%M:%S") if t.created_at else "—",
@@ -202,29 +212,39 @@ def _render_admin_incident_command(db):
 
 
 def _render_admin_directory(db):
-    """Enterprise Merchants and Customers Directory."""
-    st.markdown("### Enterprise Directory")
+    """Enterprise Merchants and Customers Directory (Matching screenshot)."""
     col_m, col_c = st.columns(2)
+
     with col_m:
-        st.write("**Registered Merchants:**")
+        st.markdown("""
+        <div class="fintech-content-card">
+            <div class="fintech-content-title">Registered Enterprise Merchants</div>
+        """, unsafe_allow_html=True)
         merchants = db.query(Merchant).all()
-        st.dataframe([{
-            "Merchant ID": m.merchant_id,
-            "Name": m.name,
-            "Category": m.business_category,
-            "Cycle": m.settlement_cycle,
-            "Risk Tier": m.risk_tier,
-        } for m in merchants], use_container_width=True)
+        df_m = pd.DataFrame([{
+            "ID": m.merchant_id,
+            "NAME": m.name,
+            "CATEGORY": m.business_category,
+            "CYCLE": m.settlement_cycle,
+            "RISK": m.risk_tier,
+        } for m in merchants])
+        st.dataframe(df_m, hide_index=True, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with col_c:
-        st.write("**Verified Customers (Sample):**")
-        custs = db.query(Customer).limit(10).all()
-        st.dataframe([{
-            "Customer ID": c.customer_id,
-            "Name": c.name,
-            "Email": c.email,
-            "Merchant": c.merchant_id,
-        } for c in custs], use_container_width=True)
+        st.markdown("""
+        <div class="fintech-content-card">
+            <div class="fintech-content-title">Verified Customer Profiles</div>
+        """, unsafe_allow_html=True)
+        custs = db.query(Customer).limit(15).all()
+        df_c = pd.DataFrame([{
+            "CUSTOMER ID": c.customer_id,
+            "NAME": c.name,
+            "EMAIL": c.email,
+            "MERCHANT": c.merchant_id,
+        } for c in custs])
+        st.dataframe(df_c, hide_index=True, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 def _render_admin_pipeline(db):
@@ -238,65 +258,34 @@ def _render_admin_pipeline(db):
     total_rejected = sum(r.records_rejected or 0 for r in runs)
 
     e1, e2, e3, e4 = st.columns(4)
-    e1.metric("Webhook Events", f"{events_count:,}")
-    e2.metric("Ingestion Batch Runs", f"{runs_count:,}")
-    e3.metric("Records Accepted", f"{total_accepted:,}")
-    e4.metric("Records Rejected", f"{total_rejected:,}")
+    with e1:
+        st.metric("Total Events Ingested", f"{events_count:,}", "Canonical Payment Schema")
+    with e2:
+        st.metric("Batch Ingestion Runs", runs_count, "PySpark / Pandas local")
+    with e3:
+        st.metric("Records Accepted", f"{total_accepted:,}", "Validated")
+    with e4:
+        st.metric("Records Rejected", f"{total_rejected:,}", "Quarantined in DLQ")
 
-    tab_webhooks, tab_csv, tab_url = st.tabs([
-        "⚡ Razorpay Webhook Gateway",
-        "📂 Batch CSV & Data Lineage",
-        "🌐 Secure External URL Ingestion"
-    ])
-
-    with tab_webhooks:
-        st.markdown("""
-        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:1rem; margin-bottom:1rem;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                    <strong style="color:#0F172A; font-size:0.95rem;">Razorpay Test Mode Webhook Gateway</strong>
-                    <div style="font-size:0.8rem; color:#64748B;">Listening at <code>/api/v1/webhooks/razorpay</code> • HMAC-SHA256 signature verification enforced</div>
-                </div>
-                <span class="fintech-badge badge-low" style="background:#DCFCE7; color:#15803D;">HMAC VERIFIED GATEWAY</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        evts = db.query(PaymentEvent).order_by(PaymentEvent.ingested_at.desc()).limit(20).all()
-        if evts:
-            st.dataframe([{
-                "Event ID": e.event_id,
-                "Payment ID": e.payment_id,
-                "Event Type": e.event_type,
-                "Source": e.event_source,
-                "Idempotency Key": e.idempotency_key,
-                "Verification": "HMAC-SHA256 PASSED",
-                "Occurred At": str(e.occurred_at),
-                "Ingested At": str(e.ingested_at),
-            } for e in evts], use_container_width=True)
-        else:
-            st.info("No webhook events logged yet. Trigger Razorpay test webhooks to observe real-time ingestion.")
+    st.markdown("---")
+    tab_csv, tab_url = st.tabs(["📄 Canonical CSV Batch Upload", "🌐 Secure URL Ingestion Service"])
 
     with tab_csv:
-        st.markdown("""
-        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:1rem; margin-bottom:1rem;">
-            <strong style="color:#0F172A; font-size:0.95rem;">Canonical Payment CSV Ingestion Engine</strong>
-            <div style="font-size:0.8rem; color:#64748B;">Automatic header auto-detection, timestamp parsing, duplicate isolation, and lineage recording.</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        uploaded_file = st.file_uploader("Upload Raw Payment CSV", type=["csv"], key="dash_csv_uploader")
+        uploaded_file = st.file_uploader(
+            "Upload Canonical Payment CSV (HDFC, Razorpay, or Core switch formats)",
+            type=["csv"],
+            key="dash_csv_uploader"
+        )
         if uploaded_file is not None:
-            if st.button("Process & Ingest CSV", type="primary"):
+            if st.button("Process & Validate CSV File", key="dash_csv_btn"):
                 from app.services.ingestion_payments import PaymentCSVIngestionService
                 service = PaymentCSVIngestionService(db)
-                import tempfile
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
-                    tmp.write(uploaded_file.getvalue())
-                    tmp_p = tmp.name
                 try:
-                    res = service.ingest_csv_file(tmp_p, source_name=uploaded_file.name)
-                    st.success(f"Ingestion {res['run_id']} finished! Accepted: {res['records_accepted']}, Rejected: {res['records_rejected']}, Duplicates: {res['records_duplicated']}")
+                    file_bytes = uploaded_file.getvalue()
+                    with st.spinner("Processing canonical payment validation & deduplication..."):
+                        res = service.process_csv_bytes(file_bytes, uploaded_file.name)
+                    st.success(f"Ingestion Run Completed: {res.get('run_id')}")
+                    st.json(res)
                 except Exception as ex:
                     st.error(f"Ingestion failed: {ex}")
 
@@ -364,65 +353,72 @@ def _render_admin_audit(db):
         st.info("Audit log is currently empty.")
 
 
-def render_admin_dashboard(role: str = "ADMIN", page: str = "Executive Overview"):
+def render_admin_dashboard(role: str = "ADMIN", page: str = "Merchants & Customers"):
+    """Render the master Payment Operations & Platform Infrastructure dashboard."""
+    # Clearance Header matching reference screenshot
     st.markdown("""
-    <div style="margin-bottom:1.5rem;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-                <span class="fintech-badge badge-critical" style="margin-bottom:6px; display:inline-block;">WORKSPACE 3 • ADMIN COMMAND CENTER</span>
-                <h1 style="font-size:1.85rem; font-weight:800; color:#0A142F; margin:0;">
-                    Payment Operations & Platform Infrastructure
-                </h1>
-                <p style="color:#64748B; font-size:0.92rem; margin-top:4px;">
-                    Full platform observability: bank routing health, incident command, and event pipeline telemetry.
-                </p>
-            </div>
-            <div style="text-align:right;">
-                <span class="fintech-badge badge-high" style="font-weight:700;">
-                    LEVEL 3 CLEARANCE GRANTED
-                </span>
-            </div>
+    <div style="margin-bottom:1.25rem;">
+        <div style="display:flex; gap:8px; margin-bottom:6px;">
+            <span class="fintech-badge badge-critical" style="background:#FEE2E2; color:#991B1B; font-weight:700; font-size:0.68rem; padding:3px 8px; border-radius:4px;">WORKSPACE 3 • PLATFORM ADMIN COMMAND</span>
+            <span class="fintech-badge badge-high" style="background:#EFF6FF; color:#1E40AF; font-weight:700; font-size:0.68rem; padding:3px 8px; border-radius:4px;">LEVEL 3 CLEARANCE GRANTED</span>
+        </div>
+        <h1 style="font-size:1.75rem; font-weight:800; color:#0F172A; margin:0 0 4px 0; letter-spacing:-0.02em;">
+            Payment Operations & Platform Infrastructure
+        </h1>
+        <div style="font-size:0.85rem; color:#64748B;">
+            Full platform observability: real-time bank routing health, incident command, and event pipeline telemetry.
         </div>
     </div>
     """, unsafe_allow_html=True)
 
     with SessionLocal() as db:
-        if "Executive" in page:
-            _render_admin_executive_overview(db)
-        elif "Payment Monitoring" in page:
-            _render_admin_payment_monitoring(db)
-        elif "Bank" in page:
-            _render_admin_bank_monitoring(db)
-        elif "Incident" in page:
-            _render_admin_incident_command(db)
-        elif "Directory" in page or "Merchant" in page or "Customer" in page:
-            _render_admin_directory(db)
-        elif "Pipeline" in page or "Data" in page:
+        # If explicitly routed to pipeline or audit from sidebar
+        if "Pipeline" in page or "Data" in page:
             _render_admin_pipeline(db)
+            return
         elif "Audit" in page or "Approval" in page:
             _render_admin_audit(db)
-        else:
-            # Fallback to tabs
-            tab_exec, tab_pay_mon, tab_bank_mon, tab_incident, tab_dir, tab_pipeline, tab_audit = st.tabs([
-                "📊 Executive Overview",
-                "💳 Payment Monitoring",
-                "🏦 Bank Monitoring",
-                "🚨 Incident Command Centre",
-                "👥 Merchants & Customers",
-                "⚙️ Data Pipeline",
-                "🛡️ Audit & Approvals",
-            ])
-            with tab_exec:
-                _render_admin_executive_overview(db)
-            with tab_pay_mon:
-                _render_admin_payment_monitoring(db)
-            with tab_bank_mon:
-                _render_admin_bank_monitoring(db)
-            with tab_incident:
-                _render_admin_incident_command(db)
-            with tab_dir:
-                _render_admin_directory(db)
-            with tab_pipeline:
-                _render_admin_pipeline(db)
-            with tab_audit:
-                _render_admin_audit(db)
+            return
+
+        # 5 Main Horizontal Tabs matching screenshot
+        tab_options = [
+            "📈 Executive Overview",
+            "📋 Payment Monitoring  10",
+            "⇄ Bank Switch Telemetry",
+            "⚠️ Incident Command  2",
+            "👥 Merchants & Customers",
+        ]
+
+        # Determine default index based on incoming page
+        default_idx = 4  # Default to Merchants & Customers matching user screenshot
+        if "Executive" in page:
+            default_idx = 0
+        elif "Payment Monitoring" in page:
+            default_idx = 1
+        elif "Bank" in page:
+            default_idx = 2
+        elif "Incident" in page:
+            default_idx = 3
+        elif "Merchant" in page or "Customer" in page or "Directory" in page:
+            default_idx = 4
+
+        # Render Horizontal Tabs as styled pills
+        chosen_tab = st.radio(
+            "Admin Operations Tabs",
+            options=tab_options,
+            index=default_idx,
+            horizontal=True,
+            key="admin_horizontal_subtabs",
+            label_visibility="collapsed"
+        )
+
+        if "Executive Overview" in chosen_tab:
+            _render_admin_executive_overview(db)
+        elif "Payment Monitoring" in chosen_tab:
+            _render_admin_payment_monitoring(db)
+        elif "Bank Switch Telemetry" in chosen_tab:
+            _render_admin_bank_monitoring(db)
+        elif "Incident Command" in chosen_tab:
+            _render_admin_incident_command(db)
+        elif "Merchants & Customers" in chosen_tab:
+            _render_admin_directory(db)

@@ -837,5 +837,121 @@ div[data-baseweb="select"] span {
     color: #64748B;
 }
 
+
+/* -------------------------------------------------- EXACT SCREENSHOT REPLICA STYLES */
+/* Top Horizontal Bar */
+.top-nav-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 0.65rem 1.25rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+/* Horizontal Radio Tabs styled as Pills - SCOPED TO MAIN CONTAINER */
+.main div[data-testid="stRadio"] > div[role="radiogroup"],
+[data-testid="stMain"] div[data-testid="stRadio"] > div[role="radiogroup"] {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    border-bottom: 2px solid #E2E8F0 !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 1.5rem !important;
+}
+.main div[data-testid="stRadio"] > div[role="radiogroup"] label,
+[data-testid="stMain"] div[data-testid="stRadio"] > div[role="radiogroup"] label {
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    padding: 0.45rem 1.15rem !important;
+    border-radius: 999px !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    color: #334155 !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+}
+.main div[data-testid="stRadio"] > div[role="radiogroup"] label:hover,
+[data-testid="stMain"] div[data-testid="stRadio"] > div[role="radiogroup"] label:hover {
+    background: #F1F5F9 !important;
+    color: #0F172A !important;
+}
+.main div[data-testid="stRadio"] > div[role="radiogroup"] label[data-checked="true"],
+[data-testid="stMain"] div[data-testid="stRadio"] > div[role="radiogroup"] label[data-checked="true"] {
+    background: #0B1F3A !important;
+    color: #FFFFFF !important;
+    border-color: #0B1F3A !important;
+    font-weight: 700 !important;
+}
+.main div[data-testid="stRadio"] > div[role="radiogroup"] label[data-checked="true"] *,
+[data-testid="stMain"] div[data-testid="stRadio"] > div[role="radiogroup"] label[data-checked="true"] * {
+    color: #FFFFFF !important;
+}
+.main div[data-testid="stRadio"] > div[role="radiogroup"] input,
+[data-testid="stMain"] div[data-testid="stRadio"] > div[role="radiogroup"] input {
+    display: none !important;
+}
+.main div[data-testid="stRadio"] > div[role="radiogroup"] div[data-testid="stMarkdownContainer"],
+[data-testid="stMain"] div[data-testid="stRadio"] > div[role="radiogroup"] div[data-testid="stMarkdownContainer"] {
+    margin: 0 !important;
+}
+
+/* Sidebar Radio - ALWAYS COLUMN & RAZORPAY BLUE ACTIVE */
+[data-testid="stSidebar"] div[data-testid="stRadio"] > div,
+[data-testid="stSidebar"] div[data-testid="stRadio"] > div[role="radiogroup"] {
+    flex-direction: column !important;
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+    gap: 3px !important;
+}
+[data-testid="stSidebar"] div[data-testid="stRadio"] label {
+    border-radius: 6px !important;
+    padding: 0.45rem 0.75rem !important;
+    font-size: 0.85rem !important;
+    color: #E2E8F0 !important;
+}
+[data-testid="stSidebar"] div[data-testid="stRadio"] label[data-checked="true"] {
+    background-color: #2F5BFF !important;
+    color: #FFFFFF !important;
+    font-weight: 600 !important;
+}
+
+/* Secondary Button as Pill */
+div[data-testid="column"] button[kind="secondary"] {
+    border-radius: 999px !important;
+    font-size: 0.78rem !important;
+    font-weight: 600 !important;
+    padding: 0.35rem 0.7rem !important;
+    border: 1px solid #E2E8F0 !important;
+    background: #FFFFFF !important;
+    color: #334155 !important;
+    white-space: nowrap !important;
+}
+div[data-testid="column"] button[kind="secondary"]:hover {
+    background: #F8FAFC !important;
+    color: #0F172A !important;
+    border-color: #CBD5E1 !important;
+}
+
+/* White Content Card */
+.fintech-content-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 1.25rem 1.4rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    margin-bottom: 1rem;
+}
+.fintech-content-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #0F172A;
+    margin-bottom: 0.9rem;
+}
+
 </style>
 """
