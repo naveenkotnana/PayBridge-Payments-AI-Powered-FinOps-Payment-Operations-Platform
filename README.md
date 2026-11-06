@@ -1,152 +1,242 @@
-# PAYBRIDGE — Payments AI-Powered FinOps & Payment Operations Platform
+# PayBridge — Payments AI-Powered FinOps & Payment Operations Platform
 
-**Demo mode · Synthetic payment data · Simulated actions.**
+> **Demo mode · Synthetic payment data · Simulated operational actions**
 
-PayBridge is an interview-ready AI-powered payment operations and FinOps demonstration platform combining payment processing, data engineering, analytics, ML anomaly detection and GenAI-assisted investigation.
+PayBridge is a payment-operations prototype that brings payment records, data-quality checks, analytics, anomaly signals, AI-assisted investigation, human review, and audit records into one workflow. It combines a Streamlit interface with a FastAPI backend.
 
-**The project story:** PayBridge takes payment transaction data, detects operational anomalies using ML, investigates those incidents using a LangGraph/RAG-based AI workflow, gives a human operator evidence-backed recommendations, and records the approved outcome for auditability.
-
-The backend implements these stages. The original Customer, Merchant and Admin screens include illustrative results; complete UI-to-backend workflow wiring remains future work. This is an independent demo implementation with no Razorpay affiliation.
+The project explores a practical operations question: when payments fail or become pending, how can an operator find the relevant evidence, understand the pattern, and record a reviewable next step? Some UI results are illustrative, and operational mitigations are simulated. PayBridge is an independent project and is not affiliated with Razorpay.
 
 ## Business problem
 
-Payment operations teams investigate failed or pending payments, suspected gateway latency, abnormal transaction patterns and merchant-level incidents. They need transaction evidence, operational guidance, a reviewable recommendation and an audit trail. PayBridge organizes that work into one payment-to-decision story.
+Payment operations teams may need to investigate failed or pending payments, unusual transaction patterns, merchant-level issues, and inconsistent data feeds. Investigation can require manual queries, multiple records, and separate operating procedures. PayBridge demonstrates a structured path from payment data to evidence and a human-reviewed decision.
+
+## Key features
+
+- Customer, Merchant, and Admin views in Streamlit.
+- Razorpay Standard Checkout order creation and a FastAPI server-side verification endpoint, when valid test credentials are configured.
+- CSV ingestion with column normalization, validation, duplicate handling, import history, and rejected-row reporting.
+- SQL analytics and an Isolation Forest anomaly-scoring workflow with deterministic severity rules.
+- LangGraph investigation orchestration using registered SQL queries, analytics evidence, and local SOP retrieval.
+- Optional local Ollama structured generation with an identified deterministic fallback.
+- Human approval and rejection records, plus local audit and activity records.
+- Payment lookup by payment or order reference, and views for imported batches and merchant payment status.
 
 ## End-to-end workflow
 
 ```text
-Customer Aarav → RAMESHSWARAM CAFE → Payment transaction
-    → Data ingestion → Validation / data quality
-    → Database → Analytics → ML anomaly signal / alert
-    → Incident investigation with LangGraph
-    → RAG + named SQL + analytics evidence → Evidence bundle
-    → AI recommendation → Human review
-    → Simulated operational mitigation → Audit record
+Payment records / CSV
+        ↓
+Ingestion and data-quality checks
+        ↓
+Configured SQL database
+        ↓
+Analytics and anomaly signal
+        ↓
+LangGraph investigation
+        ↓
+SQL + analytics + retrieved SOP evidence
+        ↓
+Recommendation for human review
+        ↓
+Recorded decision and audit activity
 ```
 
-**Database scope:** SQLite is the demonstrated local database. PostgreSQL configuration and a driver are present, but loading all 50,000 records into PostgreSQL and SQL portability have not been verified. “Database” in the flow above refers to the configured store, with SQLite used for this demo.
+## Architecture
 
-## What is implemented?
+| Layer | Responsibility |
+|---|---|
+| Streamlit | Customer, Merchant, and Admin presentation screens |
+| FastAPI | Payment, ingestion, analytics, investigation, approval, and audit APIs |
+| Razorpay | Test-mode checkout and provider payment verification when configured |
+| SQLAlchemy database | Payment, order, ingestion, investigation, and decision records |
+| Data services | CSV normalization, validation, deduplication, and data-quality reporting |
+| Analytics and ML | SQL-derived metrics, Isolation Forest scores, and deterministic severity rules |
+| LangGraph and RAG | Investigation steps, allowlisted SQL tools, and local SOP retrieval |
+| Human review | Operator review of a recommendation and recording of approve/reject |
 
-- **IMPLEMENTED:** Admin CSV upload, ingestion-run records, rejection reports, persistent imported-data preview/download, searchable payment ledger, duplicate detection, normalization and separate data-quality audits.
-- **IMPLEMENTED:** SQL analytics, Isolation Forest with deterministic severity rules, and investigation of stored alerts.
-- **IMPLEMENTED:** LangGraph orchestration, local SOP retrieval, optional Ollama generation, stored approval/rejection and local action/audit records.
-- **SIMPLIFIED:** evidence validation, financial fee calculations and anomaly evaluation. The detector currently fits and scores the same aggregate dataset.
-- **SIMULATED:** operational mitigation, routing messages and external notification/ticket effects. No real production payment traffic is rerouted.
-- **DEMO ONLY:** synthetic records and presentation persona switching. Some original UI metrics and AI responses are illustrative.
-- **FUTURE WORK:** complete UI/API integration, authenticated tenant boundaries, durable execution recovery and verified PostgreSQL deployment.
+The UI is not fully wired to every backend workflow. The database demonstrated locally is SQLite. PostgreSQL configuration and a driver are present, but a complete PostgreSQL migration and deployment have not been verified.
 
 ## Razorpay payment flow
 
 ```text
-Customer → Frontend → Backend order creation → Razorpay order
-    → Checkout → Payment → Backend verification
-    → HMAC-SHA256 + provider-state checks → Database records
+Customer → FastAPI creates provider order → Razorpay Checkout
+         → checkout returns payment details → FastAPI verifies
+         → HMAC-SHA256 + provider-state checks → database record
 ```
 
-`POST /api/create-order` creates an order through the Razorpay SDK and stores the provider order locally. `POST /api/verify-payment` verifies the signature, requires a matching local order, fetches the provider payment, and checks order ID, amount, currency and captured status before recording capture.
+`POST /api/create-order` creates an order through the Razorpay SDK and stores its provider order reference locally. `POST /api/verify-payment` checks the signature, matching local order, provider payment, order ID, amount, currency, and captured status before recording a capture. The Razorpay secret remains on the server and must be configured outside source control.
 
-This is an actual provider integration when valid credentials are configured; test credentials use Razorpay test mode. Provider failures do not create fabricated successful orders. A browser success message alone does not confirm backend verification. Checkout returns its payment identifiers and signature to the server automatically. A captured, provider-verified payment displays a receipt; the manual verification form has been removed from the customer page. A completed browser payment remains an outstanding end-to-end check.
+This integration uses Razorpay test mode when test credentials are supplied. The browser success callback is not, by itself, proof of a verified payment. A completed browser checkout and receipt still require end-to-end confirmation in the target environment. Provider payment verification is separate from the simulated operational mitigation described below.
 
-Payment verification is distinct from **simulated operational mitigation**. The project does not implement production traffic rerouting.
-
-## Data engineering
+## Data engineering pipeline
 
 ```text
-Synthetic CSV → Ingestion → Column / required-field validation
-    → Duplicate and missing-value checks → Normalization
-    → Database → Separate data-quality audit → Analytics / ML
+Synthetic or compatible CSV
+        ↓
+Column mapping and normalization
+        ↓
+Required-field and schema validation
+        ↓
+Duplicate checks and rejected-row report
+        ↓
+Configured SQL database
+        ↓
+Analytics and ML inputs
 ```
 
-The generator prepares 50,000 synthetic payments across ten merchants. Ingestion archives the input, tracks accepted/rejected/duplicate counts and records rejected-row reasons. Quality audits check relationships and financial consistency. Some unknown categorical values currently receive defaults; stricter quarantine is future work. The verified local dataset is in SQLite.
+The data generator prepares synthetic payment records. CSV imports save accepted rows as structured database records and create an ingestion-run record with counts and status. The original upload and rejection report are handled separately; the system does not create a separate processed CSV. The verified local data store is SQLite.
 
-## ML and AI-assisted investigation
+## Data quality
 
-**ML:** payment records are grouped by gateway, method and bank. Isolation Forest scores aggregate attempts, failures, failure rate, volume and retryable failures. Rules assign severity and create alerts for qualifying findings. Merchant-specific evidence requires a separate filter; the main detector is not grouped by merchant. Latency detection is not established by these five features.
+The ingestion flow validates required fields, normalizes recognized values, identifies duplicate payment IDs, and reports invalid rows. Data-quality audits also check stored relationships and financial consistency. Some unrecognized categorical values may receive defaults; stricter quarantine and broader source-specific schemas remain future work. Unrelated or arbitrary files are not reliably converted into payment records.
 
-**LangGraph / GenAI:** the backend plans an investigation, runs registered SQL queries, retrieves operational SOPs, gathers analytics, validates evidence and generates a recommendation. Retrieval uses local TF-IDF and cosine similarity. Ollama provides optional local structured generation; an explicitly identified deterministic fallback is available.
+## Analytics
 
-RAG grounds the investigation using retrieved operational knowledge and evidence, while human review remains part of the workflow. Grounding checks are heuristic. Approved actions produce local records; audit hashes provide traceability rather than an immutable ledger.
+Payment records feed SQL-based metrics, including transaction counts, captured volume, and status rates. Admin Overview can filter by all payments or an imported batch. Merchant payment views can filter captured, failed, and pending records. Captured GMV is payment volume, not profit. Pending records are excluded from terminal success/failure-rate denominators. Some original dashboard metrics remain illustrative; use the ledger and clearly labeled views when presenting stored records.
 
-## Demo incident: RAMESHSWARAM CAFE
+## ML anomaly detection
 
-Use one scenario throughout: **Aarav's payment and a suspected UPI payment failure spike at RAMESHSWARAM CAFE.**
+The backend groups payment attempts by gateway, payment method, and bank, then applies Isolation Forest scoring to aggregate features such as attempts, failures, failure rate, volume, and retryable failures. Deterministic rules assign severity and create qualifying alerts. The detector currently scores aggregates from the same prepared dataset; this is not evidence of a live production outage. The main detector is not merchant-specific, and latency detection is not established by these features.
+
+## AI investigation and LangGraph
+
+The backend LangGraph workflow plans an investigation, runs registered SQL queries, gathers analytics, retrieves operational procedures, validates evidence, and generates a recommendation. The payment-reference lookup in Admin is a separate deterministic, read-only database check; it reports saved status and failure reason when available and returns “not found” for unknown references. It is not an unrestricted chatbot or a live bank query.
+
+## Retrieval-augmented generation (RAG)
+
+RAG adds relevant local operating procedures to an investigation. PayBridge uses local TF-IDF and cosine-similarity retrieval over its SOP documents. Retrieved procedure text is combined with database and analytics evidence for review. Ollama can provide optional local structured generation; a deterministic fallback is available. Retrieval and grounding checks are heuristic, so recommendations still require human review. The implementation does not claim zero hallucinations or embedding-based vector search.
+
+## Incident example
+
+### Rameshwaram Cafe — UPI failure pattern
 
 ```text
-Payment → Abnormal failure pattern → ML signal / alert
-    → Incident investigation → Evidence → Recommendation
-    → Admin review → “Simulated mitigation approved” → Audit
+Prepared payment records
+        ↓
+Failure pattern qualifies for an alert
+        ↓
+Investigation gathers database and SOP evidence
+        ↓
+Recommendation is presented to an Admin
+        ↓
+Admin records approve/reject decision
+        ↓
+Local audit/activity record
 ```
 
-The prepared cafe/SBI/UPI segment contains 503 captured, 133 failed and 4 pending transactions. Its terminal failure rate is `133 / (503 + 133) = 20.91%`; failed attempted amount is INR 41,360. These synthetic aggregates illustrate the investigation, rather than proving a time-local outage or confirmed revenue loss.
+The prepared cafe/SBI/UPI segment contains 503 captured, 133 failed, and 4 pending transactions. Its terminal failure rate is `133 / (503 + 133) = 20.91%`; the failed attempted amount is INR 41,360. These are synthetic aggregates for an investigation example, not proof of a time-local bank outage or confirmed revenue loss. Setup also seeds a rule-based alert, so its presence alone does not show that ML ran.
 
-Select an actual backend alert to demonstrate investigation and stored review. The sample mitigation button saves a simulated approval/rejection and shows its decision in Approvals and Overview activity. It does not change payment status or execute a live routing change. The stored LangGraph workflow approvals remain a separate backend path. Setup seeds a rule-based demo alert, so its presence alone does not demonstrate that ML ran. A separate payment-incident model exists, but automatic conversion of every incident into an investigation alert is incomplete.
+## Human-in-the-loop approvals
+
+An approval is for a proposed operational response, not for whether an individual payment succeeded. The operator reviews the evidence and records approval or rejection. In the sample incident UI, this records a simulated mitigation decision; it does not change payment status, reroute live traffic, or execute a bank-switch change. Stored backend workflow approvals are a separate path from the illustrative incident card.
+
+## Auditability
+
+PayBridge stores local activity and audit records for supported workflows, including decisions. Audit hashes provide traceability; they are not an immutable ledger or a guarantee of production compliance. Inspect the `/audit` API after using an authorized workflow.
+
+## Demo disclosure
+
+> **Demo mode · Synthetic payment data · Simulated operational actions**
+
+- Transaction datasets used for demonstrations are synthetic.
+- Some dashboard and incident content is illustrative.
+- Razorpay checkout can use test credentials; test payments are not real-money payments.
+- Approval records a decision; it does not route real payment traffic.
+- The local demo uses SQLite; PostgreSQL migration and production deployment are unverified.
+- Do not present this prototype as a production payment-routing platform.
+
+## Portals and demo flows
+
+- **Customer:** preset cafe menu, editable cart, demo wallet, Razorpay checkout options, and payment receipt/history. The PayBridge wallet uses simulated INR 50,000 credit and does not move funds through Razorpay.
+- **Merchant:** cafe payment ledger, status filters, order summaries, and merchant-side activity. Some fulfillment/status messages are illustrative.
+- **Admin:** overview, imported-batch data, payment lookup, anomaly/investigation pages, approvals, and audit activity. Some original UI investigation content is illustrative or only partially connected to backend workflows.
 
 ## Technology stack
 
-- **Backend:** Python, FastAPI, Pydantic, SQLAlchemy; Razorpay SDK.
-- **Database:** SQLite for the local demo; PostgreSQL driver/configuration and Alembic are present.
-- **Data engineering:** pandas, NumPy, CSV ingestion and validation services.
+- **Backend:** Python, FastAPI, Pydantic, SQLAlchemy, Razorpay SDK.
+- **Database:** SQLite for the verified local demo; PostgreSQL driver/configuration and Alembic are present but migration is unverified.
+- **Data engineering:** pandas, NumPy, CSV ingestion and validation.
 - **ML:** scikit-learn Isolation Forest and deterministic rules.
-- **GenAI:** LangGraph, optional Ollama, local TF-IDF/cosine SOP retrieval.
+- **AI:** LangGraph, local TF-IDF/cosine SOP retrieval, optional Ollama.
 - **Frontend:** Streamlit.
-- **DevOps and quality:** Docker Compose, GitHub Actions, pytest, Ruff and Mypy.
+- **Quality and packaging:** pytest, Ruff, Mypy, Docker Compose, GitHub Actions.
 
-## Run locally
+## Repository structure
 
-Use Python 3.11 or newer from the repository root. In PowerShell, start the FastAPI backend and Streamlit frontend together:
+```text
+backend/                 FastAPI app, APIs, database, agent, RAG, services
+backend/app/agent/       LangGraph workflow and registered tools
+backend/app/rag/         Local retrieval and optional Ollama client
+backend/app/static/      FastAPI-served landing page and static assets
+backend/data/            Local documents, generated data, and demo database files
+backend/alembic/         Database migration scripts
+frontend/                Streamlit entry point, views, and shared styles
+ml/                      ML components
+tests/                   Automated test suite
+docs/                    Project and technical documentation
+.env.example             Configuration template; contains no live secrets
+requirements.txt         Python dependencies
+start-demo.ps1           Local FastAPI and Streamlit launcher
+Dockerfile               Container build
+docker-compose.yml        Local compose configuration
+```
+
+## API overview
+
+Interactive API documentation is available at `/docs` when FastAPI is running. Core routes include:
+
+| Method | Route | Purpose |
+|---|---|---|
+| `GET` | `/health` | Service health |
+| `POST` | `/auth/login` | Obtain an API access token |
+| `GET` | `/api/v1/payments/kpis` | Payment KPIs |
+| `GET` | `/api/v1/payments/dashboard` | Payment dashboard data |
+| `POST` | `/api/v1/ingestion/csv` | Upload a payment CSV |
+| `GET` | `/api/v1/ingestion/runs` | List ingestion runs |
+| `GET` | `/alerts` | List investigation alerts |
+| `POST` | `/alerts/{alert_id}/investigate` | Investigate an alert |
+| `POST` | `/workflows/{workflow_id}/approve` | Record workflow approval |
+| `POST` | `/workflows/{workflow_id}/reject` | Record workflow rejection |
+| `GET` | `/audit` | Read audit events |
+| `POST` | `/api/create-order` | Create a Razorpay order |
+| `POST` | `/api/verify-payment` | Verify a Razorpay payment |
+
+## Security considerations
+
+Razorpay secrets are read from environment configuration and used server-side. Payment verification checks the signature and provider state before recording capture. API authentication and role permissions exist for backend workflows, but Streamlit persona selection is a presentation feature and is not a secure user identity. Authenticated UI identities, complete tenant isolation, and production deployment hardening remain future work. Never commit `.env` or real credentials; use `.env.example` as a template.
+
+## Getting started
+
+Use Python 3.11 or newer from the repository root. In PowerShell:
 
 ```powershell
 python -m pip install -r requirements.txt
 ./start-demo.ps1
 ```
 
-The existing Customer, Merchant, and Admin interface opens in Streamlit at [http://127.0.0.1:8501](http://127.0.0.1:8501). FastAPI runs alongside it; open [Swagger API docs](http://127.0.0.1:8000/docs), [ReDoc](http://127.0.0.1:8000/redoc), or [health status](http://127.0.0.1:8000/health) to demonstrate the backend. The API exposes payment analytics, CSV ingestion, investigation workflows, human approval, audit, and Razorpay order/verification endpoints.
+Open Streamlit at `http://127.0.0.1:8501`, FastAPI Swagger at `http://127.0.0.1:8000/docs`, or health at `http://127.0.0.1:8000/health`. The launcher selects the local PayBridge database when present, otherwise the packaged payment database, and passes the same database URL to both processes.
 
-`start-demo.ps1` selects `backend/data/paybridge.db` when it exists, or the packaged `payment_data.db` otherwise, then passes that same database URL to FastAPI and Streamlit.
+Configuration is documented in `.env.example`. Set `DATABASE_URL` and `DEMO_MODE` as needed. Razorpay checkout requires `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`; keep the secret local or in a deployment secret manager. Optional local generation uses `OLLAMA_BASE_URL` and `OLLAMA_MODEL`.
 
-In Swagger, authenticate with `/auth/login`, select a returned `/alerts` ID, investigate it, inspect its workflow, and approve or reject a pending recommendation with an authorized role. Inspect `/audit` afterward. Use the locally seeded demo accounts defined in `backend/app/core/security.py`.
+## Testing and validation
 
-Configuration is documented in `.env.example`:
-
-- `DEMO_MODE` and `DATABASE_URL`: demo initialization and shared storage.
-- `JWT_SECRET`: use a unique secret; non-demo startup rejects known weak defaults.
-- `OLLAMA_BASE_URL`, `OLLAMA_MODEL`: optional local inference configuration. Install the model with `ollama pull qwen2.5:3b-instruct`.
-- `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`: required for provider checkout; keep credentials in local environment configuration.
-
-## Scope and validation
-
-This interview/demo implementation uses synthetic data and simulated operational actions. Streamlit persona selection is a presentation feature. Authenticated UI identities, tenant-scoped checkout and server-priced carts remain future work. Keep the current demo local. Some investigation analytics are global; state the scope when presenting merchant evidence.
-
-The verified local test suite passed **152 tests**, with three existing datetime deprecation warnings. To run the suite, first set `DATABASE_URL` to a disposable database, then run:
+The latest local validation recorded in this README was **152 passing tests**, with three datetime deprecation warnings. This does not verify a production deployment, completed real-money payment, or PostgreSQL migration. To run the suite safely, point `DATABASE_URL` at a disposable database, then run:
 
 ```powershell
 python backend/scripts/setup_all.py
 python -m pytest tests/ -q
 ```
 
-Docker Compose and GitHub Actions define packaging and validation steps. They do not establish a verified production deployment, real-money end-to-end testing or PostgreSQL certification.
+## Limitations and future work
 
-## Current interview walkthrough
+- Complete the Streamlit-to-API integration for all screens and workflows.
+- Verify PostgreSQL migration, schema setup, and deployment persistence.
+- Connect anomaly results consistently to investigation records and UI views.
+- Add authenticated UI identities and enforce tenant-scoped data access.
+- Evaluate anomaly detection and AI recommendation quality on representative, approved data.
+- Add operational monitoring, recovery, and production security hardening.
+- Do not use simulated approval records to claim live routing or payment remediation.
 
-See [SUBMISSION.md](SUBMISSION.md) for the three-moment explanation and [VALIDATION.md](VALIDATION.md) for the latest verification boundaries.
+## Interview summary
 
-## One-click wallet demo and UPI
-
-Customer → Orders now offers PayBridge Wallet (demo), UPI (Razorpay), and Card / Wallet (Razorpay).
-
-The local demo wallet starts once with INR 50,000 simulated credit. Clicking Pay INR 280 debits the stored balance, saves a synthetic WALLET transaction and audit record, and displays a downloadable receipt. Repeating the same payment request does not debit twice. Insufficient funds and failed database commits do not leave a partial payment. The wallet is disabled outside DEMO_MODE and never claims to move funds through Razorpay.
-
-UPI is prioritized in provider checkout. Availability depends on the methods enabled by Razorpay for the account; this change does not activate a disabled provider method. Real UPI requires customer authorization. The local wallet gives an immediate, repeatable interview demonstration without requiring a bank or card.
-
-## Cafe menu and merchant order updates
-
-Customer → Orders contains five items: Masala Dosa (INR 120), Idli (INR 50), Vada (INR 70), Filter Coffee (INR 40), and Tea (INR 30). Breakfast and Snack preset combinations cost INR 280 and INR 150. Edit quantities and select Update cart before paying. Prices and totals are computed on the server; saved itemized orders flow into receipts and Merchant Orders. Merchant Overview recent-order cards and totals now read stored records.
-
-## Payment support lookup
-
-Admin → AI Investigation → Check a transaction reads a payment or order reference from a short question. It displays captured/failed/pending status and any saved failure reason. Unknown references are shown as not found, not failed. If no cause is recorded, the tool states that limitation. This is a deterministic read-only check against the configured database, not an unrestricted chatbot or a live bank query. The separate Incident investigation (demo) mode retains illustrative content.
-
-## Uploaded-batch overview
-
-Admin → Overview → Overview data can select All payments or a single import batch. Transaction counts, captured GMV, captured/failed/pending counts and success/failure rates read the selected accepted database records. Pending outcomes are excluded from the terminal success/failure denominator. Invalid and duplicate CSV rows remain ingestion rejections rather than failed payments. Demo gateway and data-quality cards are explicitly labeled illustrative.
+> PayBridge imports and analyzes payment records, flags unusual patterns, investigates them with SQL evidence and retrieved operating procedures, and lets a human review and record a response. It is a prototype with synthetic data and simulated operational actions.
