@@ -234,9 +234,3 @@ python -m pytest tests/ -q
 - Connect anomaly results consistently to investigation records and UI views.
 - Add authenticated UI identities and enforce tenant-scoped data access.
 - Evaluate anomaly detection and AI recommendation quality on representative, approved data.
-- Add operational monitoring, recovery, and production security hardening.
-- Do not use simulated approval records to claim live routing or payment remediation.
-
-## Interview summary
-
-> PayBridge imports and analyzes payment records, flags unusual patterns, investigates them with SQL evidence and retrieved operating procedures, and lets a human review and record a response. It is a prototype with synthetic data and simulated operational actions.
