@@ -17,6 +17,7 @@ Phase 2 additions:
 """
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     Date,
     DateTime,
@@ -58,6 +59,22 @@ class Customer(Base):
     is_synthetic = Column(Boolean, default=True)
     data_source = Column(String(20), default="SYNTHETIC", index=True)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class DemoWallet(Base):
+    """Persisted simulated credit. Never represents provider or bank funds."""
+    __tablename__ = "demo_wallets"
+    customer_id = Column(String(40), primary_key=True)
+    balance = Column(Numeric(14, 2), nullable=False, default=50000)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    __table_args__ = (CheckConstraint("balance >= 0", name="ck_demo_wallet_balance"), {"extend_existing": True})
+
+
+class CafeOrderItems(Base):
+    __tablename__ = "cafe_order_items"
+    order_id = Column(String(40), primary_key=True)
+    items_json = Column(Text, nullable=False)
+    total = Column(Numeric(14, 2), nullable=False)
 
 
 class PaymentOrder(Base):

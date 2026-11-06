@@ -22,6 +22,7 @@ import streamlit as st
 from backend.app.db.base import SessionLocal
 from backend.app.models.payments import PaymentTransaction
 from frontend.styles import render_html
+from backend.app.services.payment_support import lookup_payment
 
 
 def render_ai_investigation(role: str = "ADMIN"):
@@ -47,6 +48,39 @@ def render_ai_investigation(role: str = "ADMIN"):
     """)
 
     with SessionLocal() as db:
+        mode = st.radio("Investigation mode", ["Check a transaction", "Incident investigation (demo)"], horizontal=True)
+        if mode == "Check a transaction":
+            st.markdown("### Check a customer's payment")
+            st.caption("Paste a payment or order reference, or ask a question containing one. Answers come from saved records; no missing cause is guessed.")
+            question = st.text_input("Payment reference or question", placeholder="Why did pay_... fail? / Check order_...", key="payment_support_question", max_chars=512)
+            if st.button("Check payment status", type="primary", key="payment_support_check", disabled=not question.strip()):
+                st.session_state.payment_support_reference = question
+            if st.session_state.get("payment_support_reference"):
+                try:
+                    result = lookup_payment(db, st.session_state.payment_support_reference)
+                    if not result["matches"]:
+                        st.warning(result["message"])
+                        if result["order_status"]:
+                            st.write("Stored order status:", result["order_status"])
+                    for payment in result["matches"]:
+                        if payment["status"] == "CAPTURED":
+                            st.success(payment["explanation"])
+                        elif payment["status"] == "FAILED":
+                            st.error(payment["explanation"])
+                        else:
+                            st.info(payment["explanation"])
+                        st.write(f"Payment: {payment['payment_id']} · Order: {payment['order_id']}")
+                        cols = st.columns(3)
+                        cols[0].metric("Amount", f"{payment['currency']} {payment['amount']}")
+                        cols[1].metric("Saved status", payment["status"])
+                        cols[2].metric("Method", payment["method"])
+                        st.caption(f"Merchant: {payment['merchant_id']} · Source: {payment['source']} · Recorded: {payment['recorded_at']}")
+                        with st.expander("Recorded evidence"):
+                            st.json(payment)
+                except ValueError as exc:
+                    st.error(str(exc))
+            st.caption("This read-only status check does not rerun a payment, change its status or contact a bank. Demo-wallet and synthetic sources are labeled.")
+            return
         st.markdown("### 🔍 Select or Enter Operational Inquiry")
 
         sample_prompts = [

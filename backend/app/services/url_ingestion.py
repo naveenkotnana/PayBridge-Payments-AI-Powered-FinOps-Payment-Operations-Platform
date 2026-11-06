@@ -6,7 +6,7 @@ Security Model:
 2. SSRF Protection:
    - Resolves host DNS to IP address before connection.
    - Blocks private, loopback, link-local, multicast, and reserved IP ranges (RFC 1918, RFC 3927).
-   - Re-checks destination IP on every HTTP redirect hop.
+   - Rejects redirects. DNS preflight is not connection-level IP pinning.
 3. Resource Limits:
    - Max file size limit: 10 MB (prevents memory exhaustion on 8 GB RAM).
    - Strict connection and read timeout: 10 seconds.
@@ -92,7 +92,7 @@ def validate_url_safety(url: str, allowed_domains: Optional[List[str]] = None) -
     try:
         addr_info = socket.getaddrinfo(hostname, None)
         for entry in addr_info:
-            ip_addr = entry[4][0]
+            ip_addr = str(entry[4][0])
             if is_ip_private_or_restricted(ip_addr):
                 raise SSRFSecurityError(
                     f"SSRF Alert: Hostname '{hostname}' resolves to private/restricted IP '{ip_addr}'"
@@ -121,31 +121,34 @@ class SecureURLIngestionService:
 
         async with httpx.AsyncClient(
             timeout=DEFAULT_TIMEOUT_SECONDS,
-            follow_redirects=True,
+            follow_redirects=False,
             max_redirects=3,
         ) as client:
             try:
-                response = await client.get(safe_url)
+                async with client.stream("GET", safe_url) as response:
+                    if response.status_code != 200:
+                        raise SSRFSecurityError(f"Remote server returned HTTP {response.status_code}; redirects are disabled")
+                    chunks = []
+                    size = 0
+                    async for chunk in response.aiter_bytes():
+                        size += len(chunk)
+                        if size > MAX_FILE_SIZE_BYTES:
+                            raise SSRFSecurityError("Remote dataset exceeds the 10 MB limit")
+                        chunks.append(chunk)
+                    content_bytes = b"".join(chunks)
+            except SSRFSecurityError:
+                raise
             except httpx.TimeoutException:
                 raise SSRFSecurityError(f"Connection timeout fetching URL: {url}")
             except Exception as e:
                 raise SSRFSecurityError(f"HTTP request error: {str(e)}")
-
-            if response.status_code != 200:
-                raise SSRFSecurityError(f"Remote server returned HTTP {response.status_code}")
-
-            # Check response size cap
-            content_bytes = response.content
-            if len(content_bytes) > MAX_FILE_SIZE_BYTES:
-                raise SSRFSecurityError(
-                    f"File size {len(content_bytes)} bytes exceeds maximum {MAX_FILE_SIZE_BYTES} bytes"
-                )
 
             # Determine format
             content_type = response.headers.get("content-type", "").lower()
             url_path = Path(urlparse(safe_url).path)
             file_name = url_path.name or "external_dataset.csv"
 
+            file_buffer: io.StringIO | io.BytesIO
             # Parse content into CSV-compatible buffer
             if "json" in content_type or file_name.endswith(".json"):
                 # Handle JSON array of payments

@@ -1,6 +1,8 @@
 """PayBridge REST API. Synthetic data only. Local Ollama only. No paid APIs."""
 from contextlib import asynccontextmanager
 import datetime as dt
+import hashlib
+import uuid
 import json
 from pathlib import Path
 import time
@@ -16,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.agent.tools.action_tool import create_incident
 from app.agent.workflow import resume_after_approval, run_investigation
 from app.analytics.queries import QUERIES
+from app.core.config import settings
 from app.core.logging_config import setup_logging
 from app.core.security import (create_access_token, get_current_user, require,
                                seed_demo_users, verify_password)
@@ -39,6 +42,8 @@ setup_logging()
 
 @asynccontextmanager
 async def _lifespan(application):
+    if not settings.DEMO_MODE and settings.JWT_SECRET in {"dev-only-change-me", "", "change-me-in-your-local-env"}:
+        raise RuntimeError("Set a unique JWT_SECRET outside demo mode.")
     init_db()
     db = SessionLocal()
     try:
@@ -87,7 +92,7 @@ def root():
     html_file = STATIC_DIR / "index.html"
     if html_file.exists():
         return FileResponse(html_file, media_type="text/html")
-    return HTMLResponse("<h1>PayBridge API is running</h1><p>Visit <a href='/docs'>/docs</a></p>")
+    return HTMLResponse("<h1>PayBridge API is running</h1><p>Visit <a href='/docs'>API docs</a></p>")
 
 
 @app.get("/index.html", response_class=HTMLResponse, include_in_schema=False)
@@ -134,7 +139,7 @@ def health(db: Session = Depends(get_db)):
 @app.post("/auth/login", response_model=Token, tags=["auth"])
 def login(body: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == body.username).first()
-    if not user or not verify_password(body.password, user.password_hash):
+    if not user or not user.is_active or not verify_password(body.password, user.password_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
     return Token(access_token=create_access_token(user), role=user.role,
                  user_id=user.user_id)
@@ -208,6 +213,16 @@ def get_workflow(workflow_id: str, db: Session = Depends(get_db),
             "errors": json.loads(w.errors or "[]")}
 
 
+def _record_decision(db, workflow_id, user_id, decision, reason):
+    payload = json.dumps({"workflow_id": workflow_id, "decision": decision, "reason": reason}, sort_keys=True)
+    db.add(AuditLog(audit_id=f"AUD-{uuid.uuid4().hex[:12]}", workflow_id=workflow_id,
+                    user_id=user_id, agent_node="human_decision", tool_name="approval",
+                    input_hash=hashlib.sha256(payload.encode()).hexdigest(),
+                    result_status=decision, approval_status=decision,
+                    action="HUMAN_DECISION", latency_ms=0,
+                    timestamp=dt.datetime.now(dt.timezone.utc)))
+
+
 @app.post("/workflows/{workflow_id}/approve", tags=["approval"])
 def approve(workflow_id: str, body: ApprovalDecision,
             db: Session = Depends(get_db),
@@ -220,7 +235,8 @@ def approve(workflow_id: str, body: ApprovalDecision,
         return {"ok": False, "status": ap.decision,
                 "note": "Decision already recorded; idempotent no-op."}
     ap.decision, ap.approver, ap.reason = "APPROVED", user.user_id, body.reason
-    ap.timestamp = dt.datetime.now()
+    ap.timestamp = dt.datetime.now(dt.timezone.utc)
+    _record_decision(db, workflow_id, user.user_id, "APPROVED", body.reason)
     db.commit()
     result = resume_after_approval(db, workflow_id)
     return {"ok": result["ok"], "approval_id": ap.approval_id, "decision": "APPROVED",
@@ -238,6 +254,7 @@ def reject(workflow_id: str, body: ApprovalDecision,
     if ap.decision != "PENDING":
         return {"ok": False, "status": ap.decision, "note": "Already decided."}
     ap.decision, ap.approver, ap.reason = "REJECTED", user.user_id, body.reason
+    _record_decision(db, workflow_id, user.user_id, "REJECTED", body.reason)
     db.commit()
     w = db.query(Workflow).filter(Workflow.workflow_id == workflow_id).first()
     if w:
@@ -352,7 +369,7 @@ def evaluation(suite: Optional[str] = None, db: Session = Depends(get_db),
     if suite:
         q = q.filter(EvaluationResult.suite == suite.upper())
     rows = q.order_by(EvaluationResult.run_at.desc()).limit(500).all()
-    by_suite = {}
+    by_suite: dict[str, dict] = {}
     for r in rows:
         s = by_suite.setdefault(r.suite, {"passed": 0, "total": 0})
         s["total"] += 1
@@ -383,7 +400,7 @@ def simulation_scenarios():
 
 
 @app.post("/api/v1/simulation/generate", tags=["simulation"])
-def simulation_generate(req: SimulationGenerateRequest, db: Session = Depends(get_db), user=Depends(require("operator"))):
+def simulation_generate(req: SimulationGenerateRequest, db: Session = Depends(get_db), user=Depends(require("configure"))):
     """Generate synthetic payments, lifecycle events, and settlements under a scenario."""
     gen = PaymentDataGenerator(db, seed=req.seed)
     return gen.generate_scenario(
@@ -395,7 +412,7 @@ def simulation_generate(req: SimulationGenerateRequest, db: Session = Depends(ge
 
 
 @app.post("/api/v1/simulation/augment", tags=["simulation"])
-def simulation_augment(req: SimulationAugmentRequest, db: Session = Depends(get_db), user=Depends(require("operator"))):
+def simulation_augment(req: SimulationAugmentRequest, db: Session = Depends(get_db), user=Depends(require("configure"))):
     """Augment dataset with targeted rare edge cases preserving temporal and financial invariants."""
     gen = PaymentDataGenerator(db, seed=req.seed)
     return gen.augment_dataset(
@@ -424,17 +441,14 @@ def payment_dashboard(days_back: int = Query(7, ge=0, le=90), db: Session = Depe
     return engine.get_full_dashboard()
 
 
-
 # -------------------------------------------------------------- ingestion & webhooks
 @app.post("/api/v1/ingestion/url", tags=["ingestion"])
-def ingest_from_url_endpoint(req: URLIngestionRequest, db: Session = Depends(get_db), user=Depends(require("configure"))):
+async def ingest_from_url_endpoint(req: URLIngestionRequest, db: Session = Depends(get_db), user=Depends(require("configure"))):
     """Securely fetch and ingest payment records from external URL with SSRF protection."""
-    from app.services.ingestion_payments import PaymentCSVIngestionService
     from app.services.url_ingestion import SecureURLIngestionService, SSRFSecurityError
-    csv_service = PaymentCSVIngestionService(db)
-    service = SecureURLIngestionService(csv_service=csv_service)
+    service = SecureURLIngestionService(db)
     try:
-        return service.fetch_and_ingest(url=req.url)
+        return await service.fetch_and_ingest(url=req.url)
     except SSRFSecurityError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -446,9 +460,13 @@ async def ingest_csv_endpoint(file: UploadFile = File(...), db: Session = Depend
     import tempfile
     from app.services.ingestion_payments import PaymentCSVIngestionService
 
-    suffix = Path(file.filename).suffix or ".csv"
+    suffix = Path(file.filename or "payments.csv").suffix or ".csv"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        content = await file.read()
+        content = await file.read(10 * 1024 * 1024 + 1)
+        if len(content) > 10 * 1024 * 1024:
+            tmp.close()
+            os.remove(tmp.name)
+            raise HTTPException(413, "CSV exceeds 10 MB limit")
         tmp.write(content)
         tmp_path = tmp.name
 

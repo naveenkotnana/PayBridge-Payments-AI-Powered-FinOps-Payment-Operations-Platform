@@ -5,15 +5,18 @@ Real local business receiving customer food and beverage orders.
 Focused on understandable business metrics, order statuses, and fulfillment advisories.
 """
 from decimal import Decimal
+import json
+from html import escape
 import pandas as pd
 import streamlit as st
 
 from backend.app.db.base import SessionLocal
 from backend.app.models.payments import (
     Merchant,
-    PaymentTransaction,
+    PaymentTransaction, PaymentOrder, CafeOrderItems,
 )
 from frontend.styles import render_html
+from backend.app.models.ops import AuditLog
 
 
 def render_merchant_portal(merchant_id: str = "mid_rameshwaram_01", page: str = "Overview"):
@@ -38,11 +41,11 @@ def render_merchant_portal(merchant_id: str = "mid_rameshwaram_01", page: str = 
         pending = [t for t in txns if t.status in ("PENDING", "AUTHORIZED")]
 
         # Calculate metrics
-        today_orders = len(txns) + 138 if len(txns) < 10 else len(txns)
-        today_captured = len(captured) + 112 if len(captured) < 10 else len(captured)
-        today_failed = 27  # Matching the demo incident
-        today_pending = len(pending) if pending else 5
-        today_rev = sum([Decimal(str(t.amount)) for t in captured], Decimal("0.00")) + Decimal("38140.00")
+        today_orders = db.query(PaymentOrder).filter(PaymentOrder.merchant_id == merchant_id).count()
+        today_captured = len(captured)
+        today_failed = sum(t.status == "FAILED" for t in txns)
+        today_pending = len(pending)
+        today_rev = sum([Decimal(str(t.amount)) for t in captured], Decimal("0.00"))
 
         # --------------------------------------------------------- 1. HEADER
         render_html("""
@@ -65,7 +68,16 @@ def render_merchant_portal(merchant_id: str = "mid_rameshwaram_01", page: str = 
         """)
 
         # --------------------------------------------------------- 2. BUSINESS IMPACT ALERT
-        incident_approved = "Approved" in st.session_state.get("incident_status", "")
+        decision = (
+            db.query(AuditLog)
+            .filter(
+                AuditLog.workflow_id == "WF-RAMESHWARAM-REROUTE",
+                AuditLog.result_status.in_(["APPROVED", "REJECTED"]),
+            )
+            .order_by(AuditLog.timestamp.desc(), AuditLog.audit_id.desc())
+            .first()
+        )
+        incident_approved = bool(decision and decision.result_status == "APPROVED")
 
         if not incident_approved:
             render_html("""
@@ -95,14 +107,14 @@ def render_merchant_portal(merchant_id: str = "mid_rameshwaram_01", page: str = 
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span style="font-size:1.1rem;">✅</span>
-                        <strong style="color:#065F46; font-size:0.95rem;">Payment Issue Mitigated</strong>
+                        <strong style="color:#065F46; font-size:0.95rem;">Demo Mitigation Approved</strong>
                     </div>
                     <span style="font-size:0.72rem; font-weight:700; background:#D1FAE5; color:#047857; padding:2px 8px; border-radius:4px;">
-                        TRAFFIC REROUTED
+                        SIMULATED DECISION SAVED
                     </span>
                 </div>
                 <div style="font-size:0.85rem; color:#065F46; margin-top:6px; line-height:1.45;">
-                    Admin has taken corrective action and temporarily routed UPI transactions to healthy banking switches. Normal order processing is restored.
+                    The Admin approved the simulated mitigation. The review is complete; this prototype has not changed bank routing or the status of existing payments.
                 </div>
             </div>
             """)
@@ -122,103 +134,82 @@ def render_merchant_portal(merchant_id: str = "mid_rameshwaram_01", page: str = 
             # Top KPI metrics
             m1, m2, m3, m4, m5 = st.columns(5)
             with m1:
-                st.metric("Today's Orders", today_orders, "🍽️ Food & Beverages")
+                st.metric("Stored Orders", today_orders, "🍽️ Food & Beverages")
             with m2:
-                st.metric("Today's Revenue", f"₹{float(today_rev):,.2f}", "Total Sales")
+                st.metric("Captured GMV", f"₹{float(today_rev):,.2f}", "Stored payment volume")
             with m3:
                 st.metric("Successful Payments", today_captured, "🟢 Confirmed")
+                if st.button(f"View successful ({today_captured})", key="merchant_view_successful", disabled=today_captured == 0, use_container_width=True):
+                    st.session_state["merchant_payment_status_view"] = "CAPTURED"
             with m4:
-                st.metric("Failed Payments", today_failed, "⚠️ UPI Switch Timeouts")
+                st.metric("Failed Payments", today_failed, "Stored failed payments")
+                if st.button(f"View failed ({today_failed})", key="merchant_view_failed", disabled=today_failed == 0, use_container_width=True):
+                    st.session_state["merchant_payment_status_view"] = "FAILED"
             with m5:
                 st.metric("Pending Payments", today_pending, "⏱️ Awaiting Bank Confirmation")
+                if st.button(f"View pending ({today_pending})", key="merchant_view_pending", disabled=today_pending == 0, use_container_width=True):
+                    st.session_state["merchant_payment_status_view"] = "PENDING"
+
+            status_view = st.session_state.get("merchant_payment_status_view")
+            if status_view:
+                view_title = {"CAPTURED": "Successful payments", "FAILED": "Failed payments", "PENDING": "Pending and authorized payments"}[status_view]
+                st.markdown(f"**{view_title} · Rameshwaram Cafe**")
+                if st.button("Close payment details", key="merchant_close_payment_details"):
+                    st.session_state.pop("merchant_payment_status_view", None)
+                    st.rerun()
+                visible_statuses = {"PENDING", "AUTHORIZED"} if status_view == "PENDING" else {status_view}
+                visible_txns = [t for t in txns if t.status in visible_statuses]
+                payment_records = [{
+                    "Payment ID": t.payment_id,
+                    "Order ID": t.order_id or "—",
+                    "Amount": f"₹{float(t.amount):,.2f}",
+                    "Method": t.method,
+                    "Bank": t.bank or "—",
+                    "Status": t.status,
+                    "Failure reason": t.error_description or "—",
+                    "Last update": t.created_at.strftime("%Y-%m-%d %H:%M") if t.created_at else "—",
+                } for t in visible_txns]
+                if payment_records:
+                    st.dataframe(pd.DataFrame(payment_records), hide_index=True, use_container_width=True)
+                else:
+                    st.info("No saved payments currently match this status.")
 
             st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
 
             # Live Orders Cards Preview
             st.markdown('<div style="font-size:0.88rem; font-weight:800; color:#0F172A; margin-bottom:0.75rem;">Recent Customer Orders</div>', unsafe_allow_html=True)
 
-            c_o1, c_o2 = st.columns(2)
-            with c_o1:
-                render_html("""
-                <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:10px; padding:1.1rem; box-shadow:0 1px 2px rgba(0,0,0,0.02); margin-bottom:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <strong style="color:#0F172A; font-size:0.95rem;">Order #RC10291</strong>
-                        <span style="font-size:0.72rem; font-weight:700; background:#ECFDF5; color:#059669; padding:2px 8px; border-radius:4px;">✅ Payment Successful</span>
+            if st.button("Refresh recent orders", key="refresh_merchant_orders"):
+                st.rerun()
+            recent = db.query(PaymentOrder, CafeOrderItems).join(CafeOrderItems, CafeOrderItems.order_id == PaymentOrder.order_id).filter(PaymentOrder.merchant_id == merchant_id).order_by(PaymentOrder.created_at.desc(), PaymentOrder.order_id.desc()).limit(4).all()
+            if not recent:
+                st.info("No customer menu orders yet. Place an order from Customer → Orders.")
+            columns = st.columns(2)
+            for i, (order, details) in enumerate(recent):
+                with columns[i % 2]:
+                    items = json.loads(details.items_json)
+                    item_lines = "<br>".join(f"• {escape(item['name'])} × {item['quantity']}" for item in items)
+                    paid = order.status == "PAID"
+                    status = "Payment successful" if paid else "Awaiting payment"
+                    render_html(f"""
+                    <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;padding:1.1rem;box-shadow:0 1px 2px rgba(0,0,0,0.02);margin-bottom:10px;">
+                        <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;">
+                            <strong>Order #{escape(order.order_id[-8:].upper())}</strong>
+                            <span style="color:{'#059669' if paid else '#B45309'};font-weight:700;">{status}</span>
+                        </div>
+                        <div style="font-size:0.85rem;line-height:1.5;">{item_lines}</div>
+                        <div style="margin-top:10px;border-top:1px dashed #E2E8F0;padding-top:8px;"><strong>Total: ₹{order.amount:,.2f}</strong></div>
+                        <div style="font-size:0.75rem;color:#64748B;margin-top:5px;">{escape(order.data_source or '')} · {escape(str(order.created_at)[:19])}</div>
                     </div>
-                    <div style="font-size:0.85rem; color:#334155; line-height:1.4;">
-                        • Masala Dosa × 2<br>
-                        • Filter Coffee × 1
-                    </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:6px; border-top:1px dashed #E2E8F0; font-size:0.82rem;">
-                        <span style="font-weight:700; color:#0F172A;">Total: ₹280</span>
-                        <span style="color:#2563EB; font-weight:600;">Kitchen Status: 🍽️ Preparing</span>
-                    </div>
-                </div>
-                """)
-
-                render_html("""
-                <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:10px; padding:1.1rem; box-shadow:0 1px 2px rgba(0,0,0,0.02); margin-bottom:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <strong style="color:#0F172A; font-size:0.95rem;">Order #RC10293</strong>
-                        <span style="font-size:0.72rem; font-weight:700; background:#ECFDF5; color:#059669; padding:2px 8px; border-radius:4px;">✅ Payment Successful</span>
-                    </div>
-                    <div style="font-size:0.85rem; color:#334155; line-height:1.4;">
-                        • Ghee Roast Dosa × 2<br>
-                        • Filter Coffee × 2
-                    </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:6px; border-top:1px dashed #E2E8F0; font-size:0.82rem;">
-                        <span style="font-weight:700; color:#0F172A;">Total: ₹360</span>
-                        <span style="color:#2563EB; font-weight:600;">Kitchen Status: 🍽️ Preparing</span>
-                    </div>
-                </div>
-                """)
-
-            with c_o2:
-                render_html("""
-                <div style="background:#FFFFFF; border:1px solid #FCA5A5; border-radius:10px; padding:1.1rem; box-shadow:0 1px 2px rgba(0,0,0,0.02); margin-bottom:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <strong style="color:#0F172A; font-size:0.95rem;">Order #RC10292</strong>
-                        <span style="font-size:0.72rem; font-weight:700; background:#FEF2F2; color:#DC2626; padding:2px 8px; border-radius:4px;">❌ Payment Failed</span>
-                    </div>
-                    <div style="font-size:0.85rem; color:#334155; line-height:1.4;">
-                        • Paneer Dosa × 1<br>
-                        • Lime Soda × 2
-                    </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:6px; border-top:1px dashed #FCA5A5; font-size:0.82rem;">
-                        <span style="font-weight:700; color:#0F172A;">Total: ₹320</span>
-                        <span style="color:#DC2626; font-weight:600;">Do not prepare (Unpaid)</span>
-                    </div>
-                </div>
-                """)
-
-                render_html("""
-                <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:10px; padding:1.1rem; box-shadow:0 1px 2px rgba(0,0,0,0.02); margin-bottom:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <strong style="color:#0F172A; font-size:0.95rem;">Order #RC10294</strong>
-                        <span style="font-size:0.72rem; font-weight:700; background:#ECFDF5; color:#059669; padding:2px 8px; border-radius:4px;">✅ Payment Successful</span>
-                    </div>
-                    <div style="font-size:0.85rem; color:#334155; line-height:1.4;">
-                        • Idli Vada Combo × 1<br>
-                        • Masala Chai × 1
-                    </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:6px; border-top:1px dashed #E2E8F0; font-size:0.82rem;">
-                        <span style="font-weight:700; color:#0F172A;">Total: ₹140</span>
-                        <span style="color:#059669; font-weight:600;">Status: 🛵 Delivered</span>
-                    </div>
-                </div>
-                """)
+                    """)
 
         elif tab_choice == "Orders":
             st.markdown('<div style="font-size:0.88rem; font-weight:800; color:#0F172A; margin-bottom:0.75rem;">All Store Orders</div>', unsafe_allow_html=True)
-            orders_data = [
-                {"Order ID": "#RC10291", "Items": "Masala Dosa × 2, Filter Coffee × 1", "Amount": "₹280.00", "Payment Status": "SUCCESSFUL", "Kitchen Order": "Preparing"},
-                {"Order ID": "#RC10292", "Items": "Paneer Dosa × 1, Lime Soda × 2", "Amount": "₹320.00", "Payment Status": "FAILED", "Kitchen Order": "Cancelled (Unpaid)"},
-                {"Order ID": "#RC10293", "Items": "Ghee Roast Dosa × 2, Filter Coffee × 2", "Amount": "₹360.00", "Payment Status": "SUCCESSFUL", "Kitchen Order": "Preparing"},
-                {"Order ID": "#RC10294", "Items": "Idli Vada Combo × 1, Masala Chai × 1", "Amount": "₹140.00", "Payment Status": "SUCCESSFUL", "Kitchen Order": "Delivered"},
-                {"Order ID": "#RC10295", "Items": "Rava Dosa × 1, Filter Coffee × 1", "Amount": "₹190.00", "Payment Status": "PENDING", "Kitchen Order": "Hold Fulfillment"},
-                {"Order ID": "#RC10296", "Items": "Benne Dosa × 2, Badam Milk × 1", "Amount": "₹310.00", "Payment Status": "SUCCESSFUL", "Kitchen Order": "Delivered"},
-            ]
-            st.dataframe(pd.DataFrame(orders_data), hide_index=True, use_container_width=True)
+            orders = db.query(PaymentOrder, CafeOrderItems).join(CafeOrderItems, CafeOrderItems.order_id == PaymentOrder.order_id).filter(PaymentOrder.merchant_id == merchant_id).order_by(PaymentOrder.created_at.desc()).limit(100).all()
+            if orders:
+                st.dataframe(pd.DataFrame([{"Order ID": order.order_id, "Customer": order.customer_id, "Items": ", ".join(f"{item['name']} × {item['quantity']}" for item in json.loads(details.items_json)), "Amount": f"₹{order.amount:,.2f}", "Payment Status": order.status, "Source": order.data_source} for order, details in orders]), hide_index=True, use_container_width=True)
+            else:
+                st.info("No cafe menu orders yet. Completed customer checkout orders will appear here.")
 
         elif tab_choice == "Payments":
             st.markdown('<div style="font-size:0.88rem; font-weight:800; color:#0F172A; margin-bottom:0.75rem;">Store Payment Transactions Stream</div>', unsafe_allow_html=True)
@@ -231,7 +222,8 @@ def render_merchant_portal(merchant_id: str = "mid_rameshwaram_01", page: str = 
                         "Customer": t.customer_id or "Aarav",
                         "Amount": f"₹{float(t.amount):,.2f}",
                         "Method": t.method,
-                        "Bank": t.bank or "SBI",
+                        "Bank": t.bank or "—",
+                        "Source": t.data_source,
                         "Status": t.status,
                         "Error Details": t.error_description or "—",
                         "Timestamp": t.created_at.strftime("%Y-%m-%d %H:%M") if t.created_at else "Just now",

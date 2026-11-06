@@ -43,6 +43,8 @@ class SQLToolError(Exception):
 
 def validate_raw_sql(sql: str) -> str:
     s = sql.strip().rstrip(";")
+    if any(marker in s for marker in ('"', '`', '[', ']', '--', '/*')):
+        raise SQLToolError("Quoted identifiers and comments are not permitted")
     if ";" in s:
         raise SQLToolError("Multiple statements are not permitted")
     if not re.match(r"^\s*(SELECT|WITH)\b", s, re.I):
@@ -84,14 +86,5 @@ def run_named_query(db: Session, name: str, params: Optional[dict] = None,
 
 
 def run_raw_sql(db: Session, sql: str) -> dict:
-    t0 = time.time()
-    try:
-        safe = validate_raw_sql(sql)
-    except SQLToolError as e:
-        return {"ok": False, "error": str(e), "rows": [], "row_count": 0}
-    try:
-        rows = db.execute(text(safe)).mappings().all()
-        return {"ok": True, "rows": [dict(r) for r in rows], "row_count": len(rows),
-                "executed_sql": safe, "latency_ms": int((time.time() - t0) * 1000)}
-    except Exception as e:
-        return {"ok": False, "error": f"{type(e).__name__}: {e}", "rows": [], "row_count": 0}
+    # Only named, application-owned SQL is executable in this prototype.
+    return {"ok": False, "error": "Raw SQL execution is disabled; use a named query", "rows": [], "row_count": 0}

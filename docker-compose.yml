@@ -1,57 +1,33 @@
-# Ollama deliberately runs on the HOST, not in a container.
-# Reason: the GTX 1650 has 4 GB VRAM. Containerised Ollama on Windows would go
-# through WSL2 and lose direct GPU access, forcing slow CPU inference. Services
-# reach the host via host.docker.internal.
+# Local submission demo: both services share the same SQLite dataset.
 services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: opspilot
-      POSTGRES_PASSWORD: opspilot
-      POSTGRES_DB: opspilot
-    ports: ["5432:5432"]
-    volumes: ["pgdata:/var/lib/postgresql/data"]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U opspilot"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   api:
     build: .
-    depends_on:
-      postgres: {condition: service_healthy}
     environment:
-      DATABASE_URL: postgresql+psycopg2://opspilot:opspilot@postgres:5432/opspilot
+      DEMO_MODE: "true"
+      DATABASE_URL: sqlite:////app/backend/data/payment_data.db
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b-instruct}
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
-    ports: ["8000:8000"]
+    ports: ["127.0.0.1:8000:8000"]
     volumes: ["./backend/data:/app/backend/data"]
     extra_hosts: ["host.docker.internal:host-gateway"]
     command: >
-      sh -c "python backend/scripts/setup_all.py &&
+      sh -c "python backend/scripts/setup_demo.py &&
              uvicorn backend:app --host 0.0.0.0 --port 8000"
-
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/openapi.json', timeout=5)"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
   dashboard:
     build: {context: ., dockerfile: frontend/Dockerfile}
-    depends_on: [api]
-    environment:
-      API_BASE_URL: http://api:8000
-    ports: ["8501:8501"]
-    extra_hosts: ["host.docker.internal:host-gateway"]
-
-  worker:
-    build: .
     depends_on:
-      postgres: {condition: service_healthy}
+      api: {condition: service_healthy}
     environment:
-      DATABASE_URL: postgresql+psycopg2://opspilot:opspilot@postgres:5432/opspilot
+      DEMO_MODE: "true"
+      DATABASE_URL: sqlite:////app/backend/data/payment_data.db
       OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b-instruct}
+    ports: ["127.0.0.1:8501:8501"]
+    volumes: ["./backend/data:/app/backend/data"]
     extra_hosts: ["host.docker.internal:host-gateway"]
-    # Periodic recompute: revenue + anomaly detection.
-    command: >
-      sh -c "while true; do python backend/scripts/run_batch.py; sleep 3600; done"
-
-volumes:
-  pgdata:

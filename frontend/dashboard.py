@@ -104,12 +104,14 @@ with top_c_pills:
     with p1:
         if st.button("🛡️ Admin", key="btn_top_admin", use_container_width=True, type="primary" if current_role == "ADMIN" else "secondary"):
             st.session_state.role = "ADMIN"
+            st.session_state.top_role_dropdown = "Admin"
             st.session_state.username = "admin"
             st.session_state.selected_nav = "Overview"
             st.rerun()
     with p2:
         if st.button("🏪 Merchant", key="btn_top_merchant", use_container_width=True, type="primary" if current_role == "MERCHANT" else "secondary"):
             st.session_state.role = "MERCHANT"
+            st.session_state.top_role_dropdown = "Merchant"
             st.session_state.username = "merchant"
             st.session_state.merchant_id = "mid_rameshwaram_01"
             st.session_state.selected_nav = "Overview"
@@ -117,6 +119,7 @@ with top_c_pills:
     with p3:
         if st.button("👤 Customer", key="btn_top_customer", use_container_width=True, type="primary" if current_role == "CUSTOMER" else "secondary"):
             st.session_state.role = "CUSTOMER"
+            st.session_state.top_role_dropdown = "Customer"
             st.session_state.username = "customer"
             st.session_state.customer_id = "cust_aarav_01"
             st.session_state.selected_nav = "Orders"
@@ -132,7 +135,7 @@ with top_c_right:
         selected_role_label = st.selectbox(
             "Active Role",
             options=roles_list,
-            index=current_idx,
+            index=None if "top_role_dropdown" in st.session_state else current_idx,
             key="top_role_dropdown",
             label_visibility="collapsed"
         )
@@ -213,7 +216,7 @@ with st.sidebar:
         "Platform Navigation",
         options=nav_options,
         index=nav_options.index(st.session_state.selected_nav),
-        key="main_role_navigation_radio",
+        key=f"main_role_navigation_radio_{current_role}",
         label_visibility="collapsed"
     )
     if chosen_nav != st.session_state.selected_nav:

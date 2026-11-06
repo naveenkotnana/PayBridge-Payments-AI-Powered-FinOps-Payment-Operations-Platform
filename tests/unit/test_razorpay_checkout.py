@@ -18,6 +18,41 @@ from app.models.payments import (
 from fastapi import HTTPException
 
 
+def test_cart_prices_override_client_amount(mem_db):
+    from app.models.payments import CafeOrderItems
+    response = create_razorpay_order(CreateOrderRequest(amount=100, items={"tea": 2}), db=mem_db)
+    assert response.amount == 6000
+    assert mem_db.get(PaymentOrder, response.order_id).amount == 60
+    assert mem_db.get(CafeOrderItems, response.order_id).total == 60
+
+
+def test_local_payment_key_rotation(monkeypatch, tmp_path):
+    from app.api import checkout
+    local = tmp_path / ".env"
+    monkeypatch.setattr(checkout, "PAYMENT_ENV_PATH", local)
+    local.write_text("RAZORPAY_KEY_ID=rzp_test_first\nRAZORPAY_KEY_SECRET=first-secret\n")
+    assert checkout._payment_credentials() == ("rzp_test_first", "first-secret")
+    local.write_text("RAZORPAY_KEY_ID=rzp_test_rotated\nRAZORPAY_KEY_SECRET=rotated-secret\n")
+    assert checkout._payment_credentials() == ("rzp_test_rotated", "rotated-secret")
+
+
+@pytest.fixture(autouse=True)
+def provider_stub(monkeypatch, tmp_path):
+    """No test should contact the payment provider or depend on real credentials."""
+    from unittest.mock import MagicMock
+    monkeypatch.setattr("app.api.checkout.PAYMENT_ENV_PATH", tmp_path / ".env")
+    client = MagicMock()
+    client.order.create.return_value = {"id": "order_unit_test"}
+    client.payment.fetch.return_value = {"id": "pay_test_aarav_999", "order_id": "order_test_aarav_001",
+                                         "amount": 28000, "currency": "INR", "status": "captured",
+                                         "method": "upi", "bank": "HDFC"}
+    client.utility.verify_payment_signature.side_effect = ValueError("Invalid signature")
+    monkeypatch.setattr(settings, "RAZORPAY_KEY_ID", "rzp_test_unit")
+    monkeypatch.setattr(settings, "RAZORPAY_KEY_SECRET", "unit-test-secret")
+    monkeypatch.setattr("app.api.checkout.razorpay.Client", lambda **kwargs: client)
+    return client
+
+
 @pytest.fixture
 def mem_db():
     engine = create_engine("sqlite:///:memory:")
@@ -160,3 +195,35 @@ def test_security_secret_never_exposed(mem_db):
     dump = res.model_dump()
     assert "key_secret" not in dump
     assert settings.RAZORPAY_KEY_SECRET not in str(dump)
+
+
+def _signed_request(order_id="order_test_aarav_001", payment_id="pay_test_aarav_999"):
+    signature = hmac.new(settings.RAZORPAY_KEY_SECRET.encode(), f"{order_id}|{payment_id}".encode(), hashlib.sha256).hexdigest()
+    return VerifyPaymentRequest(razorpay_order_id=order_id, razorpay_payment_id=payment_id, razorpay_signature=signature)
+
+
+def test_missing_local_order_rejected(mem_db):
+    with pytest.raises(HTTPException) as exc:
+        verify_razorpay_payment(_signed_request(), db=mem_db)
+    assert exc.value.status_code == 404
+    assert mem_db.query(PaymentTransaction).count() == 0
+
+
+@pytest.mark.parametrize("field,value", [("status", "authorized"), ("amount", 1), ("currency", "USD"), ("order_id", "other")])
+def test_provider_mismatch_rejected(mem_db, provider_stub, field, value):
+    mem_db.add(PaymentOrder(order_id="order_test_aarav_001", merchant_id="mid_rameshwaram_01", amount=280, currency="INR", status="CREATED"))
+    mem_db.commit()
+    provider_stub.payment.fetch.return_value[field] = value
+    with pytest.raises(HTTPException) as exc:
+        verify_razorpay_payment(_signed_request(), db=mem_db)
+    assert exc.value.status_code == 409
+    assert mem_db.query(PaymentTransaction).count() == 0
+    assert mem_db.get(PaymentOrder, "order_test_aarav_001").status == "CREATED"
+
+
+def test_provider_failure_never_creates_fake_order(mem_db, provider_stub):
+    provider_stub.order.create.side_effect = RuntimeError("provider unavailable")
+    with pytest.raises(HTTPException) as exc:
+        create_razorpay_order(CreateOrderRequest(amount=28000), db=mem_db)
+    assert exc.value.status_code == 502
+    assert mem_db.query(PaymentOrder).count() == 0

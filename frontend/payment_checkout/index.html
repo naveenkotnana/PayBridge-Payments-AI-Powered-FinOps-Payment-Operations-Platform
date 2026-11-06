@@ -1,0 +1,35 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><script src="https://checkout.razorpay.com/v1/checkout.js"></script></head>
+<body style="font-family:Arial,sans-serif;margin:0;background:#f8fafc;color:#0f172a">
+<div style="padding:16px;border:1px solid #cbd5e1;border-radius:8px;text-align:center">
+<button id="pay" style="background:#00875a;color:white;padding:12px 20px;border:0;border-radius:6px;cursor:pointer" disabled>Open Razorpay Checkout</button>
+<p id="status" role="status">Preparing checkout…</p></div>
+<script>
+let args, busy = false;
+const send = (type, data = {}) => window.parent.postMessage({isStreamlitMessage:true,type,...data}, '*');
+const height = n => send('streamlit:setFrameHeight', {height:n});
+window.addEventListener('message', e => {
+  if(e.source !== window.parent || e.data.type !== 'streamlit:render') return;
+  args = e.data.args;
+  document.getElementById('pay').disabled = !window.Razorpay || busy;
+  document.getElementById('status').textContent = window.Razorpay ? 'Complete checkout; the server will verify the result.' : 'Checkout could not load. Check your connection and refresh.';
+  height(busy ? 650 : 140);
+});
+document.getElementById('pay').onclick = () => {
+  if(!args || busy || !window.Razorpay) return;
+  busy = true; document.getElementById('pay').disabled = true; height(650);
+  const reset = message => {busy=false;document.getElementById('pay').disabled=false;document.getElementById('status').textContent=message;height(140);};
+  const instruments = args.preferred_method === 'upi' ? [{method:'upi'}] : [{method:'card'},{method:'wallet'}];
+  const checkout = new Razorpay({key:args.key_id,order_id:args.order_id,amount:args.amount,currency:'INR',name:'RAMESHSWARAM CAFE',description:args.description || 'Cafe order',theme:{color:'#00875A'},
+    config:{display:{blocks:{preferred:{name:args.preferred_method === 'upi' ? 'Pay via UPI' : 'Cards and wallets',instruments}},sequence:['block.preferred'],preferences:{show_default_blocks:true}}},
+    handler: response => {
+      document.getElementById('status').textContent='Payment received. Waiting for server verification…';
+      send('streamlit:setComponentValue',{value:{razorpay_order_id:response.razorpay_order_id,razorpay_payment_id:response.razorpay_payment_id,razorpay_signature:response.razorpay_signature},dataType:'json'});
+    },
+    modal:{ondismiss:()=>reset('Checkout closed. You can reopen it if payment was not completed.')}
+  });
+  checkout.on('payment.failed', response => reset('Payment failed: '+(response.error?.description || 'Please try again.')));
+  try {checkout.open();} catch(error){reset('Unable to open checkout. Refresh and try again.');}
+};
+send('streamlit:componentReady',{apiVersion:1});height(140);
+</script></body></html>

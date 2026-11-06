@@ -11,9 +11,11 @@ Responsibilities:
 - Full Data Engineering visibility: CSV/URL ingestion, run IDs, data quality, and cryptographic audit.
 """
 import datetime as dt
+import hashlib
+import uuid
 from decimal import Decimal
 import pandas as pd
-from sqlalchemy import text
+from sqlalchemy import text, func
 import streamlit as st
 
 from backend.app.db.base import SessionLocal
@@ -83,127 +85,136 @@ def _render_10_step_workflow():
     """)
 
 
-def _render_demo_incident(db):
-    """Render the central Rameshwaram Cafe UPI Payment Failure Spike incident card."""
-    if "incident_status" not in st.session_state:
-        st.session_state.incident_status = "Waiting for Admin Approval"
+APPROVAL_INCIDENTS = [
+    {"id":"INC-RC-982", "workflow":"WF-RAMESHWARAM-REROUTE", "merchant":"Rameshwaram Cafe", "method":"UPI", "change":"6.2% → 14.8% failure rate", "affected":"27 payments", "evidence":"Primary bank-switch latency rose above 4,200 ms; several cafe orders remained pending.", "suggestion":"Review routing through healthy ICICI or Axis switches."},
+    {"id":"INC-204", "workflow":"WF-INC-204", "merchant":"Northstar Marketplace", "method":"Cards", "change":"3.1% → 9.7% decline rate", "affected":"43 payments", "evidence":"Issuer timeouts increased across one acquiring route.", "suggestion":"Temporarily shift eligible card traffic to a healthy acquiring route."},
+    {"id":"INC-315", "workflow":"WF-INC-315", "merchant":"SwiftDrop Delivery", "method":"Netbanking", "change":"2.4% → 11.2% pending rate", "affected":"31 payments", "evidence":"Payment confirmations are arriving later than the normal processing window.", "suggestion":"Reconcile pending orders before retrying to avoid duplicate charges."},
+    {"id":"INC-188", "workflow":"WF-INC-188", "merchant":"TripNest Travel", "method":"Wallet", "change":"0.2% → 4.5% duplicate callback rate", "affected":"12 payments", "evidence":"Repeated provider callbacks share the same order references.", "suggestion":"Apply idempotency checks and reconcile affected orders."},
+    {"id":"INC-441", "workflow":"WF-INC-441", "merchant":"LearnWell Subscriptions", "method":"UPI mandate", "change":"4.0% → 12.6% retry failure rate", "affected":"56 payments", "evidence":"Mandate responses show repeated bank-side declines during retries.", "suggestion":"Pause rapid retries and use a spaced retry schedule."},
+    {"id":"INC-726", "workflow":"WF-INC-726", "merchant":"BrightPath Education", "method":"Bank transfer", "change":"12 settlements delayed", "affected":"12 settlements", "evidence":"Settlement records are older than the configured expected window.", "suggestion":"Reconcile settlement references and raise a provider follow-up."},
+    {"id":"INC-309", "workflow":"WF-INC-309", "merchant":"MealRoute Foods", "method":"Refunds", "change":"18 refund mismatches", "affected":"18 refunds", "evidence":"Refund requests and provider status records do not match for these references.", "suggestion":"Reconcile refund status before issuing any repeat refund."},
+    {"id":"INC-592", "workflow":"WF-INC-592", "merchant":"PlayForge Digital", "method":"Cards", "change":"Unusual attempt-rate increase", "affected":"36 attempts", "evidence":"Several rapid attempts share a device and payment fingerprint.", "suggestion":"Review the attempts and apply the configured risk checks."},
+    {"id":"INC-147", "workflow":"WF-INC-147", "merchant":"CarePoint Clinic", "method":"UPI", "change":"1.8% → 8.9% failure rate", "affected":"22 payments", "evidence":"Failures cluster around a single payment route while other routes remain stable.", "suggestion":"Review the route health and use an available healthy route if confirmed."},
+    {"id":"INC-830", "workflow":"WF-INC-830", "merchant":"CityGrid Utilities", "method":"Cards and UPI", "change":"Provider timeout increase", "affected":"29 payments", "evidence":"Timeout responses rose across a short interval and require reconciliation.", "suggestion":"Check provider status and reconcile uncertain payments before retrying."},
+]
 
-    is_approved = "Approved" in st.session_state.incident_status
-    is_rejected = "Rejected" in st.session_state.incident_status
 
-    status_badge_color = "#059669" if is_approved else ("#DC2626" if is_rejected else "#B45309")
-    status_bg = "#ECFDF5" if is_approved else ("#FEF2F2" if is_rejected else "#FEF3C7")
+def _render_approval_incident(db, incident):
+    """Render one independent illustrative incident and its recorded decision."""
+    decision = db.query(AuditLog).filter(
+        AuditLog.workflow_id == incident["workflow"],
+        AuditLog.result_status.in_(["APPROVED", "REJECTED"]),
+    ).order_by(AuditLog.timestamp.desc(), AuditLog.audit_id.desc()).first()
+    approved = decision is not None and decision.result_status == "APPROVED"
+    rejected = decision is not None and decision.result_status == "REJECTED"
+    status = "Approved • decision recorded" if approved else "Rejected • review required" if rejected else "Awaiting admin decision"
+    badge_color = "#059669" if approved else ("#DC2626" if rejected else "#B45309")
+    badge_bg = "#ECFDF5" if approved else ("#FEF2F2" if rejected else "#FEF3C7")
+    label = f"{incident['id']} · {incident['merchant']} · {incident['method']} · {status}"
 
-    render_html(f"""
-    <div style="background:#FFFFFF; border:1px solid #FCD34D; border-left:6px solid #F59E0B; border-radius:12px; padding:1.25rem 1.4rem; margin-bottom:1.5rem; box-shadow:0 2px 8px rgba(245, 158, 11, 0.08);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size:1.2rem;">⚠️</span>
-                <span style="font-size:1.1rem; font-weight:800; color:#92400E;">UPI Payment Failure Spike — RAMESHSWARAM CAFE</span>
+    with st.expander(label, expanded=incident["id"] == "INC-RC-982" and decision is None):
+        if approved:
+            st.success("The admin approved this recommendation. The decision is recorded; live routing and payment status were not changed.")
+        elif rejected:
+            st.warning("The admin rejected this recommendation. The decision is recorded for review.")
+        render_html(f"""
+        <div style="background:#FFFFFF;border:1px solid #FCD34D;border-left:6px solid #F59E0B;border-radius:12px;padding:1rem 1.2rem;margin-bottom:0.75rem;">
+          <div style="font-weight:800;color:#92400E;margin-bottom:8px;">Merchant payment issue · {incident['merchant']} · {incident['method']}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:.7rem;">
+              <b>Observed impact</b><br>{incident['change']}<br>{incident['affected']} affected
             </div>
-            <span style="font-size:0.75rem; font-weight:700; background:#FEE2E2; color:#991B1B; padding:2px 8px; border-radius:4px;">
-                INCIDENT INC-RC-982
-            </span>
-        </div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin:10px 0;">
-            <div style="background:#FFFBEB; border:1px solid #FDE68A; border-radius:8px; padding:0.75rem;">
-                <div style="font-size:0.72rem; font-weight:700; color:#92400E; text-transform:uppercase;">Observed Degradation</div>
-                <div style="font-size:1.2rem; font-weight:800; color:#B45309; margin:2px 0;">
-                    6.2% ➔ 14.8% Failure Rate
-                </div>
-                <div style="font-size:0.75rem; color:#78350F;">
-                    Affected: <strong>27 payments</strong> across counter and online UPI transactions.
-                </div>
+            <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:.7rem;">
+              <b>Evidence summary</b><br>{incident['evidence']}
             </div>
-            <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:0.75rem;">
-                <div style="font-size:0.72rem; font-weight:700; color:#475569; text-transform:uppercase;">AI Investigation Finding</div>
-                <div style="font-size:0.8rem; color:#1E293B; margin-top:2px; line-height:1.4;">
-                    • Core banking switch latency surge (>4,200ms) on primary rail.<br>
-                    • Multi-tenant correlation: Rameshwaram Cafe orders stalling in PENDING.<br>
-                    • Deterministic evidence confirms payment gateway routing issue.
-                </div>
-            </div>
+          </div>
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:.7rem;margin-top:10px;">
+            <b>Suggested response · admin decides</b><br>{incident['suggestion']}
+          </div>
+          <div style="margin-top:10px;color:{badge_color};background:{badge_bg};padding:6px 10px;border-radius:6px;font-weight:700;">Admin decision: {status}</div>
         </div>
-        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:0.75rem 1rem; margin-top:8px;">
-            <span style="font-size:0.75rem; font-weight:700; color:#475569; text-transform:uppercase;">AI Recommended Mitigation:</span>
-            <div style="font-size:0.85rem; font-weight:600; color:#0F172A; margin-top:2px;">
-                Temporarily route affected Rameshwaram Cafe transactions through healthy payment gateways (ICICI & Axis switches).
-            </div>
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding-top:8px; border-top:1px dashed #FCD34D;">
-            <span style="font-size:0.8rem; font-weight:700; color:#78350F;">Operational Governance Status:</span>
-            <span style="font-size:0.82rem; font-weight:800; background:{status_bg}; color:{status_badge_color}; padding:3px 10px; border-radius:6px;">
-                {st.session_state.incident_status}
-            </span>
-        </div>
-    </div>
-    """)
+        """)
+        c1, c2, c3 = st.columns([1.2, 1, 1])
+        with c1:
+            st.button("🔍 Review evidence in AI Investigation", key=f"review_{incident['id']}", use_container_width=True, on_click=_navigate_to_ai_workspace)
+        with c2:
+            if st.button("✅ Approve suggestion" if not approved else "✅ Decision recorded: approved", key=f"approve_{incident['id']}", type="primary", use_container_width=True, disabled=decision is not None):
+                _save_incident_decision(db, "APPROVED", incident)
+                st.rerun()
+        with c3:
+            if st.button("Reject suggestion" if not rejected else "Decision recorded: rejected", key=f"reject_{incident['id']}", use_container_width=True, disabled=decision is not None):
+                _save_incident_decision(db, "REJECTED", incident)
+                st.rerun()
+        if decision:
+            st.caption(f"Decision saved for this incident at {str(decision.timestamp)[:19]}.")
+            _render_recent_decisions(db, incident)
 
-    c_b1, c_b2, c_b3 = st.columns([1.2, 1, 1])
-    with c_b1:
-        if st.button("🔍 Investigate in AI Workspace", key="btn_inv_inc", use_container_width=True):
-            st.session_state.selected_nav = "AI Investigation"
-            st.rerun()
 
-    with c_b2:
-        if st.button("✅ Approve Mitigation", key="btn_app_inc", type="primary", use_container_width=True):
-            st.session_state.incident_status = "Approved • Routing Rule Executed"
-            # Record audit entry into the database with explicit UTC timestamp
-            db.add(AuditLog(
-                audit_id=f"AUD-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}",
-                workflow_id="WF-RAMESHWARAM-REROUTE",
-                user_id="ADMIN",
-                agent_node="human_approval_gate",
-                tool_name="gateway_traffic_reroute",
-                input_hash="SHA256_VERIFIED_INCIDENT_APPROVAL",
-                result_status="APPROVED",
-                latency_ms=145,
-                action="REROUTE_TRAFFIC_TO_HEALTHY_GATEWAYS",
-                timestamp=dt.datetime.now(dt.timezone.utc)
-            ))
-            db.commit()
-            st.success("Human Authorization Confirmed: Payment routing rule dynamically updated across platform.")
-            st.rerun()
+def _navigate_to_ai_workspace():
+    """Select the AI Investigation page before Streamlit rebuilds its widgets."""
+    st.session_state.selected_nav = "AI Investigation"
+    st.session_state["main_role_navigation_radio_ADMIN"] = "AI Investigation"
 
-    with c_b3:
-        if st.button("❌ Reject Action", key="btn_rej_inc", use_container_width=True):
-            st.session_state.incident_status = "Rejected • Fallback to Manual"
-            st.warning("Action rejected by Admin. Incident routed to manual operations queue.")
-            st.rerun()
+
+def _save_incident_decision(db, decision, incident):
+    if decision not in {"APPROVED", "REJECTED"}:
+        raise ValueError("Invalid incident decision")
+    existing = db.query(AuditLog).filter(AuditLog.workflow_id == incident["workflow"], AuditLog.result_status.in_(["APPROVED", "REJECTED"])).first()
+    if existing:
+        return
+    db.add(AuditLog(
+        audit_id="AUD-" + uuid.uuid4().hex,
+        workflow_id=incident["workflow"], user_id="ADMIN",
+        agent_node="human_approval_gate", tool_name="mitigation_review",
+        input_hash=hashlib.sha256(f"{incident['id']}:{decision}:ILLUSTRATIVE".encode()).hexdigest(),
+        result_status=decision, approval_status=decision,
+        action="MITIGATION_APPROVED" if decision == "APPROVED" else "MITIGATION_REJECTED",
+        timestamp=dt.datetime.now(dt.timezone.utc),
+    ))
+    db.commit()
+
+
+def _render_recent_decisions(db, incident):
+    st.markdown("**Latest decision for this incident**")
+    records = db.query(AuditLog).filter(AuditLog.workflow_id == incident["workflow"], AuditLog.result_status.in_(["APPROVED", "REJECTED"])).order_by(AuditLog.timestamp.desc(), AuditLog.audit_id.desc()).limit(1).all()
+    if not records:
+        st.caption("No operational decisions recorded yet.")
+    else:
+        st.dataframe([{"Incident": f"{incident['merchant']} · {incident['id']}", "Decision": r.result_status, "Outcome": "Suggestion approved" if r.result_status == "APPROVED" else "Suggestion rejected", "Operator": r.user_id, "Timestamp": str(r.timestamp)[:19]} for r in records], hide_index=True, use_container_width=True)
 
 
 def _render_admin_overview(db):
     """Render the complete Admin Overview with KPIs, 10-step workflow, and Demo Incident."""
-    # Query summary metrics
-    total_txns = db.query(PaymentTransaction).count()
-    captured_count = db.query(PaymentTransaction).filter(PaymentTransaction.status == "CAPTURED").count()
-    failed_count = db.query(PaymentTransaction).filter(PaymentTransaction.status == "FAILED").count()
-    pending_count = db.query(PaymentTransaction).filter(PaymentTransaction.status.in_(["PENDING", "AUTHORIZED"])).count()
-
-    gmv_res = db.execute(text("SELECT SUM(amount) FROM payment_transactions WHERE status='CAPTURED'")).scalar() or 0.0
-    gmv = Decimal(str(gmv_res)) or Decimal("2450890.00")
-
+    imports = db.query(PaymentIngestionRun).order_by(PaymentIngestionRun.started_at.desc()).all()
+    selected_import = st.selectbox("Overview data", ["All payments"] + [r.run_id for r in imports], format_func=lambda rid: "All payments" if rid == "All payments" else next(f"{r.source_identifier} · {rid}" for r in imports if r.run_id == rid), key="overview_import_filter")
+    query = db.query(PaymentTransaction)
+    if selected_import != "All payments":
+        query = query.filter(PaymentTransaction.augmentation_method == "CSV_LINEAGE_" + selected_import)
+    total_txns = query.count()
+    captured_count = query.filter(PaymentTransaction.status == "CAPTURED").count()
+    failed_count = query.filter(PaymentTransaction.status == "FAILED").count()
+    pending_count = query.filter(PaymentTransaction.status.in_(["PENDING", "AUTHORIZED"])).count()
+    gmv = query.filter(PaymentTransaction.status == "CAPTURED").with_entities(func.sum(PaymentTransaction.amount)).scalar() or Decimal("0.00")
     terminal = captured_count + failed_count
-    sr_pct = (captured_count / terminal * 100) if terminal > 0 else 92.5
-    fail_pct = (failed_count / terminal * 100) if terminal > 0 else 7.5
+    sr_pct = captured_count / terminal * 100 if terminal else 0.0
+    fail_pct = failed_count / terminal * 100 if terminal else 0.0
+    st.caption("Accepted rows from the configured database. Choose All payments or an import batch. Success/failure rates exclude pending payments. Rejected CSV rows are shown in ingestion history, not counted as failed payments.")
+    counts = st.columns(3)
+    counts[0].metric("Captured payments", captured_count)
+    counts[1].metric("Failed payments", failed_count)
+    counts[2].metric("Pending / authorized", pending_count)
 
-    # 1. Top KPI Row (7 Key Metrics)
+    # 1. Top KPI Row (payment data only)
     st.markdown('<div style="font-size:0.82rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:#475569; margin-bottom:0.6rem;">Platform Key Performance Indicators</div>', unsafe_allow_html=True)
-    k1, k2, k3, k4, k5, k6, k7 = st.columns(7)
+    k1, k2, k3, k4 = st.columns(4)
     with k1:
-        st.metric("Total Transactions", f"{total_txns:,}", "Platform Total")
+        st.metric("Total Transactions", f"{total_txns:,}", "Selected payment records")
     with k2:
-        st.metric("Revenue (GMV)", f"₹{float(gmv):,.0f}", f"{captured_count:,} Captured")
+        st.metric("Captured GMV", f"₹{float(gmv):,.0f}", f"{captured_count:,} Captured")
     with k3:
         st.metric("Success Rate", f"{sr_pct:.1f}%", "Target: >90%")
     with k4:
         st.metric("Failed Payments", f"{failed_count:,}", f"{fail_pct:.1f}% Failures ({pending_count} Pending)")
-    with k5:
-        st.metric("Active Anomalies", "1 Active", "INC-RC-982")
-    with k6:
-        st.metric("Data Quality", "99.8%", "Zero corrupted schema")
-    with k7:
-        st.metric("Gateway Health", "3 Healthy", "1 Switch Degraded")
 
     st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
 
@@ -211,31 +222,31 @@ def _render_admin_overview(db):
     _render_10_step_workflow()
 
     # 3. Live Demo Incident (Rameshwaram Cafe UPI Spike)
-    _render_demo_incident(db)
+    _render_approval_incident(db, APPROVAL_INCIDENTS[0])
 
     # 4. Gateway Health & Volume Breakdown
     st.markdown('<div style="font-size:0.82rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:#475569; margin-bottom:0.6rem;">Banking Gateway Routing & Method Telemetry</div>', unsafe_allow_html=True)
     h1, h2 = st.columns([1.1, 1.9])
     with h1:
-        render_html("""
+        render_html(f"""
         <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; padding:1.25rem; height:100%; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
             <div style="font-size:0.88rem; font-weight:700; color:#0F172A; margin-bottom:0.8rem;">Payment Success Summary</div>
             <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.82rem;">
                 <span style="color:#059669; font-weight:600;">Captured Payments</span>
-                <strong style="color:#0F172A;">92.5% (948)</strong>
+                <strong style="color:#0F172A;">{sr_pct:.1f}% ({captured_count:,})</strong>
             </div>
             <div style="width:100%; height:8px; background:#F1F5F9; border-radius:4px; overflow:hidden; margin-bottom:1rem;">
-                <div style="width:92.5%; height:100%; background:#10B981;"></div>
+                <div style="width:{sr_pct:.1f}%; height:100%; background:#10B981;"></div>
             </div>
             <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.82rem;">
                 <span style="color:#DC2626; font-weight:600;">Failed Transactions</span>
-                <strong style="color:#0F172A;">7.5% (77)</strong>
+                <strong style="color:#0F172A;">{fail_pct:.1f}% ({failed_count:,})</strong>
             </div>
             <div style="width:100%; height:8px; background:#F1F5F9; border-radius:4px; overflow:hidden; margin-bottom:1rem;">
-                <div style="width:7.5%; height:100%; background:#EF4444;"></div>
+                <div style="width:{fail_pct:.1f}%; height:100%; background:#EF4444;"></div>
             </div>
             <div style="font-size:0.75rem; color:#64748B; padding-top:0.6rem; border-top:1px solid #F1F5F9;">
-                Primary failure driver: <strong style="color:#0F172A;">SBI Core Switch Timeout</strong> (4,250 ms latency surge).
+                Pending / authorized: <strong style="color:#0F172A;">{pending_count:,}</strong>. Counts use the selected database records.
             </div>
         </div>
         """)
@@ -245,7 +256,7 @@ def _render_admin_overview(db):
         <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; padding:1.25rem; height:100%; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
                 <div style="font-size:0.88rem; font-weight:700; color:#0F172A;">Core Banking Gateway Health</div>
-                <span style="font-size:0.72rem; color:#64748B;">Auto-refreshing 5s telemetry</span>
+                <span style="font-size:0.72rem; color:#64748B;">Illustrative scenario · not live telemetry</span>
             </div>
             <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px;">
                 <div style="border:1px solid #FCA5A5; background:#FEF2F2; border-radius:8px; padding:0.65rem; text-align:center;">
@@ -280,7 +291,19 @@ def _render_admin_overview(db):
 def _render_admin_payments(db):
     """Render payments ledger and filter controls."""
     st.markdown('<div style="font-size:0.88rem; font-weight:800; color:#0F172A; margin-bottom:0.75rem;">Payment Transaction Stream</div>', unsafe_allow_html=True)
-    txns = db.query(PaymentTransaction).order_by(PaymentTransaction.created_at.desc()).limit(15).all()
+    runs = db.query(PaymentIngestionRun).order_by(PaymentIngestionRun.started_at.desc()).all()
+    selected_run = st.selectbox("Payment source", ["All payments"] + [r.run_id for r in runs], format_func=lambda rid: "All payments" if rid == "All payments" else next(f"{r.source_identifier} · {rid}" for r in runs if r.run_id == rid), key="ledger_import_filter")
+    search = st.text_input("Search payment ID", key="ledger_payment_search").strip()
+    query = db.query(PaymentTransaction)
+    if selected_run != "All payments":
+        query = query.filter(PaymentTransaction.augmentation_method == "CSV_LINEAGE_" + selected_run)
+    if search:
+        query = query.filter(PaymentTransaction.payment_id.contains(search, autoescape=True))
+    total = query.count()
+    page_count = max(1, (total + 99) // 100)
+    page = st.number_input("Page", min_value=1, max_value=page_count, value=1, step=1, key=f"ledger_page_{selected_run}_{search}")
+    txns = query.order_by(PaymentTransaction.created_at.desc(), PaymentTransaction.payment_id).offset((page - 1) * 100).limit(100).all()
+    st.caption(f"{total:,} matching stored payments · Page {page} of {page_count} · 100 rows per page. Select your import to include older transaction dates.")
     if txns:
         st.dataframe([{
             "Payment ID": t.payment_id,
@@ -314,17 +337,69 @@ def _render_admin_data_pipeline(db):
     """Render Data Engineering pipeline status, CSV/URL ingestion, and runs."""
     st.markdown('<div style="font-size:0.88rem; font-weight:800; color:#0F172A; margin-bottom:0.75rem;">Data Engineering & Pipeline Observability</div>', unsafe_allow_html=True)
 
-    tab_runs, tab_url, tab_dq = st.tabs(["Ingestion Runs & History", "Secure URL Ingestion", "Data Quality Guardrails"])
+    storage = db.get_bind().url
+    storage_type = "PostgreSQL" if storage.get_backend_name() == "postgresql" else storage.get_backend_name().upper()
+    st.markdown("**Data storage**")
+    st.caption(f"Active database: {storage_type} · {storage.database or 'Configured database'}")
+    st.caption("Accepted payments → payment_transactions · Import counts, status and timestamps → payment_ingestion_runs · Rejected-row details → payment_ingestion_records")
+    st.caption("Original CSV files: backend/data/raw/ingestion_archive/ · Rejection reports: backend/data/rejected/")
+
+    tab_csv, tab_data, tab_runs, tab_dq = st.tabs(["Upload Payment CSV", "Imported Payment Data", "Ingestion Runs & History", "Data Quality Guardrails"])
+
+    with tab_data:
+        st.subheader("Stored imported payments")
+        imports = db.query(PaymentIngestionRun).order_by(PaymentIngestionRun.started_at.desc()).all()
+        if not imports:
+            st.info("No imports have been recorded in this database yet. Upload a payment CSV first.")
+        else:
+            chosen_run = st.selectbox("Choose an import", options=[r.run_id for r in imports], format_func=lambda rid: next(f"{r.source_identifier} · {r.run_id} · {r.status}" for r in imports if r.run_id == rid), key="stored_payment_import")
+            stored = db.execute(text("SELECT payment_id, order_id, merchant_id, customer_id, amount, currency, method, bank, status, created_at FROM payment_transactions WHERE augmentation_method = :lineage ORDER BY created_at DESC LIMIT 1000"), {"lineage": "CSV_LINEAGE_" + chosen_run}).mappings().all()
+            st.caption("Showing up to 1,000 accepted payment records for the selected import. Rejected and duplicate rows are not inserted as new payments.")
+            if stored:
+                frame = pd.DataFrame([dict(row) for row in stored])
+                st.dataframe(frame, use_container_width=True, hide_index=True)
+                st.download_button("Download displayed payment records", frame.to_csv(index=False).encode("utf-8"), file_name="imported_payments.csv", mime="text/csv", key="stored_payments_download")
+            else:
+                st.info("This run has no stored payment rows. Check its accepted/rejected counts in Ingestion Runs & History.")
+
+    with tab_csv:
+        st.markdown('<style>[data-testid="stFileUploaderDropzone"] svg {display:none;}</style>', unsafe_allow_html=True)
+        st.subheader("Upload payment data")
+        st.caption("CSV files up to 10 MB. Required columns: payment_id and amount (INR, in rupees). Include merchant_id, order_id, customer_id, currency, method, bank, status and created_at when available.")
+        uploaded = st.file_uploader("Choose a payment CSV", type=["csv"], key="payment_csv_upload")
+        if st.button("Validate & Import CSV", key="payment_csv_import", disabled=uploaded is None):
+            if uploaded.size > 10 * 1024 * 1024:
+                st.error("The CSV exceeds the 10 MB limit. Split it into smaller files.")
+            else:
+                from backend.app.services.ingestion_payments import PaymentCSVIngestionService
+                try:
+                    uploaded.seek(0)
+                    with st.spinner("Validating and importing payment records..."):
+                        result = PaymentCSVIngestionService(db).ingest_csv_file(uploaded, source_name=uploaded.name)
+                    st.session_state["payment_csv_result"] = result
+                except Exception as exc:
+                    st.session_state.pop("payment_csv_result", None)
+                    st.error(f"Import failed: {exc}")
+        result = st.session_state.get("payment_csv_result")
+        if result:
+            st.success(f"Import completed · Run {result['run_id']}")
+            cols = st.columns(4)
+            for col, label, field in zip(cols, ["Received", "Accepted", "Rejected", "Duplicates"], ["records_received", "records_accepted", "records_rejected", "records_duplicated"]):
+                col.metric(label, result[field])
+            st.caption("Duplicates are included in the rejected count. Accepted records are saved immediately; review rejected rows before retrying.")
+            from pathlib import Path
+            report = result.get("rejected_file_generated")
+            if report and Path(report).is_file():
+                st.download_button("Download rejected rows", Path(report).read_bytes(), file_name="rejected_payment_rows.csv", mime="text/csv", key="payment_csv_rejections")
+            with st.expander("Imported records and detected columns"):
+                st.json(result["detected_mapping"])
+                st.dataframe(db.execute(text("SELECT payment_id, merchant_id, amount, currency, method, bank, status FROM payment_transactions WHERE augmentation_method = :lineage LIMIT 100"), {"lineage": "CSV_LINEAGE_" + result["run_id"]}).mappings().all(), use_container_width=True)
+        st.info("Where to see your data: Payments shows the payment ledger. Ingestion Runs & History shows processing counts and status. Accepted rows are stored in payment_transactions in the configured database. Original uploads and rejection reports are retained by the ingestion service.")
 
     with tab_runs:
         runs = db.query(PaymentIngestionRun).order_by(PaymentIngestionRun.started_at.desc()).limit(10).all()
         if not runs:
-            # Synthetic history entries
-            mock_runs = [
-                {"Run ID": "RUN-20261105-01", "Source": "CSV_BATCH", "Records": 1025, "Accepted": 1025, "Rejected": 0, "Duplicated": 0, "Status": "COMPLETED", "Timestamp": "2026-11-05 10:00:00"},
-                {"Run ID": "RUN-20261105-02", "Source": "BANK_SWITCH_CALLBACK", "Records": 142, "Accepted": 142, "Rejected": 0, "Duplicated": 2, "Status": "COMPLETED", "Timestamp": "2026-11-05 10:15:00"},
-            ]
-            st.dataframe(pd.DataFrame(mock_runs), hide_index=True, use_container_width=True)
+            st.info("No ingestion runs yet. Upload a payment CSV to create a processing record.")
         else:
             st.dataframe([{
                 "Run ID": r.run_id,
@@ -334,34 +409,9 @@ def _render_admin_data_pipeline(db):
                 "Rejected": r.records_rejected,
                 "Duplicated": r.records_duplicated,
                 "Status": r.status,
-                "Timestamp": str(r.started_at)[:19] if r.started_at else "—",
+                "Started": str(r.started_at)[:19] if r.started_at else "—",
+                "Completed": str(r.completed_at)[:19] if r.completed_at else "—",
             } for r in runs[:10]], hide_index=True, use_container_width=True)
-
-    with tab_url:
-        render_html("""
-        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:0.9rem; margin-bottom:1rem;">
-            <strong style="color:#0F172A; font-size:0.9rem;">Secure External URL Ingestion with SSRF Protection</strong>
-            <div style="font-size:0.78rem; color:#64748B;">Domain allowlisting, DNS rebinding guard, 10MB response limits, and private RFC-1918 blocklist.</div>
-        </div>
-        """)
-        url_input = st.text_input(
-            "External Payment Dataset URL (Approved: github.com, razorpay.com, npci.org.in)",
-            value="https://raw.githubusercontent.com/datasets/investor-flow/master/data.csv",
-            key="pipeline_url_input"
-        )
-        if st.button("Secure Fetch & Ingest", key="btn_url_fetch"):
-            from backend.app.services.ingestion_payments import PaymentCSVIngestionService
-            from backend.app.services.url_ingestion import SecureURLIngestionService, SSRFSecurityError
-            csv_service = PaymentCSVIngestionService(db)
-            url_service = SecureURLIngestionService(csv_service=csv_service)
-            try:
-                with st.spinner("Validating SSRF safety and ingesting remote dataset..."):
-                    u_res = url_service.fetch_and_ingest(url_input)
-                st.success(f"URL Ingested safely! Accepted: {u_res.get('records_accepted')}, Rejected: {u_res.get('records_rejected')}")
-            except SSRFSecurityError as s_err:
-                st.error(f"SSRF Security Block: {s_err}")
-            except Exception as u_err:
-                st.error(f"Fetch failed: {u_err}")
 
     with tab_dq:
         st.markdown("**Data Quality & Integrity Guardrails:**")
@@ -450,8 +500,10 @@ def render_admin_dashboard(role: str = "ADMIN", page: str = "Overview"):
         elif page == "Data Pipeline":
             _render_admin_data_pipeline(db)
         elif page == "Approvals":
-            st.markdown('<div style="font-size:0.88rem; font-weight:800; color:#0F172A; margin-bottom:0.75rem;">Human Approval Queue & Governance Gates</div>', unsafe_allow_html=True)
-            _render_demo_incident(db)
+            st.markdown('<div style="font-size:0.88rem; font-weight:800; color:#0F172A; margin-bottom:0.75rem;">Incident Review & Admin Decisions</div>', unsafe_allow_html=True)
+            st.caption("Ten illustrative incident scenarios with independent decisions. They are not live incidents; decisions are recorded for review and do not change payment status or live routing.")
+            for incident in APPROVAL_INCIDENTS:
+                _render_approval_incident(db, incident)
         elif page == "Audit":
             _render_admin_audit(db)
         else:

@@ -100,6 +100,8 @@ DEMO_USERS = [
 
 def seed_demo_users(db: Session) -> int:
     """Demo-only credentials for a local synthetic environment."""
+    if not settings.DEMO_MODE:
+        return 0
     n = 0
     for entry in DEMO_USERS:
         uid, username, pw, role = entry[0], entry[1], entry[2], entry[3]

@@ -68,17 +68,20 @@ def resolve_model() -> Optional[str]:
 
 
 def generate(prompt: str, system: str = "", temperature: float = 0.1,
-             timeout: int = None) -> LLMResult:
+             timeout: int = None, json_mode: bool = False) -> LLMResult:
     timeout = timeout or settings.OLLAMA_TIMEOUT
     model = resolve_model()
     if model is None:
         return LLMResult(ok=False, error="OLLAMA_UNAVAILABLE_OR_NO_MODEL")
     t0 = time.time()
     try:
-        data = _post("/api/generate", {
+        payload = {
             "model": model, "prompt": prompt, "system": system, "stream": False,
             "options": {"temperature": temperature, "num_predict": 700,
-                        "num_ctx": 4096}}, timeout)
+                        "num_ctx": 4096}}
+        if json_mode:
+            payload["format"] = "json"
+        data = _post("/api/generate", payload, timeout)
         return LLMResult(ok=True, text=data.get("response", "").strip(), model=model,
                          latency_ms=int((time.time() - t0) * 1000),
                          eval_count=data.get("eval_count"))
@@ -96,7 +99,7 @@ def generate(prompt: str, system: str = "", temperature: float = 0.1,
 def generate_json(prompt: str, system: str = "", timeout: int = None) -> tuple:
     """Returns (LLMResult, parsed_dict_or_None). Malformed JSON is a handled
     failure path, not a crash."""
-    res = generate(prompt, system, timeout=timeout)
+    res = generate(prompt, system, timeout=timeout, json_mode=True)
     if not res.ok:
         return res, None
     txt = res.text.strip()
@@ -105,6 +108,7 @@ def generate_json(prompt: str, system: str = "", timeout: int = None) -> tuple:
     if start == -1 or end == -1:
         return res, None
     try:
-        return res, json.loads(txt[start:end + 1])
+        parsed = json.loads(txt[start:end + 1])
+        return res, parsed if isinstance(parsed, dict) else None
     except json.JSONDecodeError:
         return res, None

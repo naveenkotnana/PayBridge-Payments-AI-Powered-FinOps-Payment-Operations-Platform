@@ -20,12 +20,15 @@ else:
 
 
 class Settings:
+    # Local submission defaults to explicit demo behavior.
+    DEMO_MODE: bool = os.getenv("DEMO_MODE", "true").lower() == "true"
+
     # --- Database -------------------------------------------------------
     # Default SQLite in data directory so the project runs with zero setup.
     # Set DATABASE_URL to a postgresql+psycopg2://... string to use Postgres.
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
-        f"sqlite:///{DATA_DIR / ('paybridge.db' if (DATA_DIR / 'paybridge.db').exists() else 'opspilot.db')}"
+        f"sqlite:///{DATA_DIR / ('paybridge.db' if (DATA_DIR / 'paybridge.db').exists() else 'payment_data.db')}"
     )
 
     # --- Ollama (local only, no paid APIs) ------------------------------

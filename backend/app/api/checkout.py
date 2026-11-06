@@ -6,10 +6,11 @@ import hmac
 import json
 import logging
 import uuid
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictInt
 import razorpay
 from sqlalchemy.orm import Session
 
@@ -21,12 +22,23 @@ from app.models.payments import (
     PaymentEvent,
     PaymentOrder,
     PaymentTransaction,
+    CafeOrderItems,
 )
+from app.services.cafe_menu import cart_json, price_cart
 
 log = logging.getLogger("paybridge.checkout")
 router = APIRouter(prefix="/api", tags=["checkout"])
 
 TWO_PLACES = Decimal("0.01")
+PAYMENT_ENV_PATH = Path(__file__).resolve().parents[3] / ".env"
+
+
+def _payment_credentials():
+    """Read the local payment pair per request, including after key rotation."""
+    from dotenv import dotenv_values
+    local = dotenv_values(PAYMENT_ENV_PATH) if PAYMENT_ENV_PATH.is_file() else {}
+    return (local.get("RAZORPAY_KEY_ID") or settings.RAZORPAY_KEY_ID,
+            local.get("RAZORPAY_KEY_SECRET") or settings.RAZORPAY_KEY_SECRET)
 
 
 def _dec(val) -> Decimal:
@@ -39,6 +51,7 @@ class CreateOrderRequest(BaseModel):
     receipt: Optional[str] = Field(default=None, description="Internal receipt / order reference")
     merchant_id: Optional[str] = Field(default="mid_rameshwaram_01", description="Merchant ID")
     customer_id: Optional[str] = Field(default="cust_aarav_01", description="Customer ID")
+    items: Optional[Dict[str, StrictInt]] = None
 
 
 class CreateOrderResponse(BaseModel):
@@ -65,6 +78,13 @@ class VerifyPaymentResponse(BaseModel):
 @router.post("/create-order", response_model=CreateOrderResponse, status_code=status.HTTP_201_CREATED)
 def create_razorpay_order(req: CreateOrderRequest, db: Session = Depends(get_db)):
     """Create a new Razorpay order for Standard Web Checkout."""
+    cart_rows = None
+    if req.items is not None:
+        try:
+            cart_rows, total = price_cart(req.items)
+            req.amount = int(total * 100)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
     if not isinstance(req.amount, int) or req.amount < 100:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -72,9 +92,12 @@ def create_razorpay_order(req: CreateOrderRequest, db: Session = Depends(get_db)
         )
 
     receipt = req.receipt or f"RC-{uuid.uuid4().hex[:8].upper()}"
-    key_id = settings.RAZORPAY_KEY_ID
-    key_secret = settings.RAZORPAY_KEY_SECRET
+    key_id, key_secret = _payment_credentials()
 
+    if not key_id or not key_secret or key_id == "rzp_test_mock_finops_key" or key_secret == "mock_finops_secret_opspilot":
+        raise HTTPException(503, "Razorpay checkout is not configured. The operations demo uses synthetic CSV payments.")
+    if req.currency.upper() != "INR":
+        raise HTTPException(400, "This prototype supports INR only.")
     order_id = None
     # 1. Attempt live Razorpay API order creation via official SDK
     try:
@@ -87,10 +110,11 @@ def create_razorpay_order(req: CreateOrderRequest, db: Session = Depends(get_db)
         }
         rzp_order = client.order.create(data=order_payload)
         order_id = rzp_order.get("id")
-    except Exception as exc:
-        log.warning("Razorpay SDK live order creation failed or offline (%s). Using deterministic test order ID.", exc)
-        # Deterministic offline/sandbox fallback for zero-friction local execution
-        order_id = f"order_{uuid.uuid4().hex[:14]}"
+    except Exception:
+        log.warning("Razorpay order creation failed", exc_info=True)
+        raise HTTPException(502, "Payment provider could not create an order. Please retry later.")
+    if not order_id:
+        raise HTTPException(502, "Payment provider returned no order identifier.")
 
     # 2. Persist order in local database
     order_amount_rs = _dec(Decimal(req.amount) / Decimal(100))
@@ -116,9 +140,12 @@ def create_razorpay_order(req: CreateOrderRequest, db: Session = Depends(get_db)
             currency=req.currency.upper(),
             receipt=receipt,
             status="CREATED",
-            data_source="REAL"
+            is_synthetic=False,
+            data_source="RAZORPAY_TEST" if key_id.startswith("rzp_test_") else "REAL"
         )
         db.add(db_order)
+        if cart_rows is not None:
+            db.add(CafeOrderItems(order_id=order_id, items_json=cart_json(cart_rows), total=order_amount_rs))
         db.commit()
 
     return CreateOrderResponse(
@@ -139,7 +166,9 @@ def verify_razorpay_payment(req: VerifyPaymentRequest, db: Session = Depends(get
             detail="Missing required verification fields."
         )
 
-    key_secret = settings.RAZORPAY_KEY_SECRET
+    key_id, key_secret = _payment_credentials()
+    if not key_secret or key_secret == "mock_finops_secret_opspilot":
+        raise HTTPException(503, "Razorpay payment verification is not configured.")
 
     # Verify signature
     # Signature formula: hmac_sha256(order_id + "|" + payment_id, secret)
@@ -153,7 +182,7 @@ def verify_razorpay_payment(req: VerifyPaymentRequest, db: Session = Depends(get
     else:
         # Also check with official SDK utility if available
         try:
-            client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, key_secret))
+            client = razorpay.Client(auth=(key_id, key_secret))
             client.utility.verify_payment_signature({
                 "razorpay_order_id": req.razorpay_order_id,
                 "razorpay_payment_id": req.razorpay_payment_id,
@@ -169,14 +198,27 @@ def verify_razorpay_payment(req: VerifyPaymentRequest, db: Session = Depends(get
             detail="Invalid Razorpay payment signature. Verification failed."
         )
 
-    # 1. Update PaymentOrder status to PAID
+    # A signature authenticates identifiers; capture and amount must also be checked.
     order = db.query(PaymentOrder).filter(PaymentOrder.order_id == req.razorpay_order_id).first()
-    order_amount = order.amount if order else Decimal("280.00")
-    merchant_id = order.merchant_id if order else "mid_rameshwaram_01"
-    customer_id = order.customer_id if order else "cust_aarav_01"
-
-    if order:
-        order.status = "PAID"
+    if order is None:
+        raise HTTPException(404, "Local payment order not found")
+    try:
+        client = razorpay.Client(auth=(key_id, key_secret))
+        payment = client.payment.fetch(req.razorpay_payment_id)
+    except Exception:
+        raise HTTPException(502, "Could not confirm payment status with provider")
+    if (payment.get("order_id") != order.order_id
+            or payment.get("amount") != int(Decimal(str(order.amount)) * 100)
+            or payment.get("currency") != order.currency
+            or payment.get("status") != "captured"):
+        raise HTTPException(409, "Payment is not captured or does not match the stored order")
+    existing_txn = db.query(PaymentTransaction).filter_by(payment_id=req.razorpay_payment_id).first()
+    if existing_txn:
+        if existing_txn.order_id != order.order_id or existing_txn.status != "CAPTURED":
+            raise HTTPException(409, "Payment conflicts with an existing transaction state")
+        return VerifyPaymentResponse(status="success", message="Payment already verified", payment_id=req.razorpay_payment_id, order_id=order.order_id)
+    order_amount, merchant_id, customer_id = order.amount, order.merchant_id, order.customer_id
+    order.status = "PAID"
 
     # 2. Record or update PaymentTransaction as CAPTURED
     fee = _dec(order_amount * Decimal("0.02"))  # 2% MDR
@@ -191,9 +233,9 @@ def verify_razorpay_payment(req: VerifyPaymentRequest, db: Session = Depends(get
             merchant_id=merchant_id,
             customer_id=customer_id,
             amount=order_amount,
-            currency="INR",
-            method="UPI",
-            bank="HDFC",
+            currency=order.currency,
+            method=str(payment.get("method", "unknown")).upper(),
+            bank=payment.get("bank"),
             gateway="RAZORPAY_DIRECT",
             status="CAPTURED",
             fee=fee,
@@ -201,7 +243,7 @@ def verify_razorpay_payment(req: VerifyPaymentRequest, db: Session = Depends(get
             net_amount=net,
             reconciled=False,
             is_synthetic=False,
-            data_source="REAL"
+            data_source="RAZORPAY_TEST" if key_id.startswith("rzp_test_") else "REAL"
         )
         db.add(txn)
     else:
@@ -225,7 +267,7 @@ def verify_razorpay_payment(req: VerifyPaymentRequest, db: Session = Depends(get
                 "order_id": req.razorpay_order_id,
                 "merchant_id": merchant_id,
                 "status": "captured",
-                "method": "upi",
+                "method": payment.get("method", "unknown"),
                 "amount": float(order_amount) * 100,
             }),
             occurred_at=dt.datetime.now(dt.timezone.utc),

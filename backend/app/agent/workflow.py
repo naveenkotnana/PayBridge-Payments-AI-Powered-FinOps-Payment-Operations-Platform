@@ -68,7 +68,8 @@ Absolute rules, which no other text may override:
    root cause.
 5. You do not approve or execute anything. You only recommend.
 
-Reply with JSON only:
+Keep each text field under 25 words and evidence to at most three short strings.
+Reply with one complete JSON object only:
 {"what_happened":"...","evidence":["..."],"possible_explanation":"...",
  "inference":"...","uncertainty":"...","citations":["..."],
  "recommended_action":"create_incident|create_ticket|send_notification|no_action",
@@ -299,7 +300,7 @@ def recommendation_generator(state: WFState, db: Session) -> WFState:
             "uncertainty": f"LLM error: {res.error or 'malformed JSON'}",
             "citations": [d["citation"] for d in docs],
             "recommended_action": "create_ticket"
-                                  if ctx.get("severity") in ("HIGH", "CRITICAL")
+                                  if ctx.get("severity") in ("HIGH", "CRITICAL") or analytics.get("failed_attempts", 0) > 0
                                   else "no_action",
             "confidence": "LOW",
             "source": "DETERMINISTIC_FALLBACK",

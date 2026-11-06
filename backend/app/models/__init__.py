@@ -10,7 +10,7 @@ from app.models.payments import (
     Merchant, PaymentOrder, PaymentTransaction, Refund, Settlement,
     ReconciliationDiscrepancy, GatewayHealthMetric,
     PaymentEvent, PaymentAttempt, PaymentIncident, IncidentMerchant,
-    Customer, SettlementItem, Dispute, PaymentIngestionRun, PaymentIngestionRecord,
+    Customer, SettlementItem, Dispute, PaymentIngestionRun, PaymentIngestionRecord, DemoWallet, CafeOrderItems,
 )
 
 __all__ = [
@@ -21,5 +21,5 @@ __all__ = [
     "PaymentTransaction", "Refund", "Settlement",
     "ReconciliationDiscrepancy", "GatewayHealthMetric",
     "PaymentEvent", "PaymentAttempt", "PaymentIncident", "IncidentMerchant",
-    "Customer", "SettlementItem", "Dispute", "PaymentIngestionRun", "PaymentIngestionRecord",
+    "Customer", "SettlementItem", "Dispute", "PaymentIngestionRun", "PaymentIngestionRecord", "DemoWallet", "CafeOrderItems",
 ]

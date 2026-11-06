@@ -21,7 +21,7 @@ import json
 import logging
 from pathlib import Path
 import shutil
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TextIO
 import uuid
 
 from sqlalchemy.orm import Session
@@ -177,6 +177,7 @@ class PaymentCSVIngestionService:
         self.db.commit()
 
         # Archive raw input
+        f: TextIO
         archived_raw_path = self.archive_dir / f"{run_id}_{Path(source_name).name}"
         if isinstance(file_path_or_buffer, (str, Path)) and Path(file_path_or_buffer).exists():
             shutil.copyfile(str(file_path_or_buffer), str(archived_raw_path))
@@ -200,7 +201,7 @@ class PaymentCSVIngestionService:
                 raise ValueError("CSV file has no header row")
 
             # Determine column mapping
-            detected_mapping = detect_column_mapping(reader.fieldnames)
+            detected_mapping = detect_column_mapping(list(reader.fieldnames))
             final_mapping = {**detected_mapping, **(custom_mapping or {})}
 
             # Check critical required fields

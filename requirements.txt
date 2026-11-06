@@ -20,6 +20,7 @@ razorpay>=1.4.1
 
 # Auth
 PyJWT>=2.8
+python-dotenv>=1.0
 
 # Agent
 langgraph>=0.2
