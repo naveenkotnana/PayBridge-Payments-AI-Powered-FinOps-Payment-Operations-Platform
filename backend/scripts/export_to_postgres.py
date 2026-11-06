@@ -16,12 +16,12 @@ for _p in [str(PROJECT_ROOT), str(BACKEND_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import psycopg2
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-import pandas as pd
-from sqlalchemy import create_engine, text
+import psycopg2  # noqa: E402
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT  # noqa: E402
+import pandas as pd  # noqa: E402
+from sqlalchemy import create_engine, text  # noqa: E402
 
-from app.db.base import Base, init_db
+from app.db.base import Base  # noqa: E402
 
 DATA_DIR = BACKEND_DIR / "data"
 SQLITE_DB_PATH = DATA_DIR / "payment_data.db" if (DATA_DIR / "payment_data.db").exists() else (DATA_DIR / "opspilot.db")
