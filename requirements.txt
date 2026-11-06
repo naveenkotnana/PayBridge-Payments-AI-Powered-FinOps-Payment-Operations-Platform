@@ -33,5 +33,5 @@ requests>=2.31
 pytest>=7.4
 pytest-cov>=4.1
 httpx>=0.26
-ruff>=0.4.0
+ruff==0.12.0
 mypy>=1.9.0
