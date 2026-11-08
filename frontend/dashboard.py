@@ -32,7 +32,7 @@ import frontend as _frontend_mod
 sys.modules["dashboard"] = _frontend_mod
 
 import streamlit as st
-from backend.app.core.config import settings
+from app.core.config import settings
 
 # The current Streamlit pages read SQLAlchemy sessions directly and use
 # demo-only role switching. Refuse to expose those paths in production until
@@ -46,9 +46,9 @@ if not settings.DEMO_MODE:
 
 # Auto-initialize database schema, demo users, and synthetic data
 try:
-    from backend.app.core.security import seed_demo_users
-    from backend.app.db.base import SessionLocal, init_db
-    from backend.app.models import MonthlyRevenue, User
+    from app.core.security import seed_demo_users
+    from app.db.base import SessionLocal, init_db
+    from app.models import MonthlyRevenue, User
     init_db()
     with SessionLocal() as _bootstrap_db:
         if _bootstrap_db.query(User).count() == 0:

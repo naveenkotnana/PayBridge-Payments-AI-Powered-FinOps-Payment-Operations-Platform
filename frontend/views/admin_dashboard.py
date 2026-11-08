@@ -18,9 +18,9 @@ import pandas as pd
 from sqlalchemy import text, func
 import streamlit as st
 
-from backend.app.db.base import SessionLocal
-from backend.app.models.ops import AuditLog
-from backend.app.models.payments import (
+from app.db.base import SessionLocal
+from app.models.ops import AuditLog
+from app.models.payments import (
     PaymentIngestionRun,
     PaymentTransaction,
 )
@@ -371,7 +371,7 @@ def _render_admin_data_pipeline(db):
             if uploaded.size > 10 * 1024 * 1024:
                 st.error("The CSV exceeds the 10 MB limit. Split it into smaller files.")
             else:
-                from backend.app.services.ingestion_payments import PaymentCSVIngestionService
+                from app.services.ingestion_payments import PaymentCSVIngestionService
                 try:
                     uploaded.seek(0)
                     with st.spinner("Validating and importing payment records..."):
@@ -389,7 +389,7 @@ def _render_admin_data_pipeline(db):
             st.caption("Duplicates are included in the rejected count. Accepted records are saved immediately; review rejected rows before retrying.")
             from pathlib import Path
             report = result.get("rejected_file_generated")
-            from backend.app.services.ingestion_payments import PaymentCSVIngestionService
+            from app.services.ingestion_payments import PaymentCSVIngestionService
             report_path = PaymentCSVIngestionService(db).rejected_dir / Path(report).name if report else None
             if report_path and report_path.is_file():
                 st.download_button("Download rejected rows", report_path.read_bytes(), file_name="rejected_payment_rows.csv", mime="text/csv", key="payment_csv_rejections")

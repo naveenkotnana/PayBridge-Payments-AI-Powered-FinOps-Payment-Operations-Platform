@@ -197,17 +197,17 @@ def render_settings(role: str):
         b1, b2, b3 = st.columns(3)
         with b1:
             if st.button("Trigger Revenue Recalculation", use_container_width=True, type="primary"):
-                from backend.app.services.revenue import calculate_all_months
+                from app.services.revenue import calculate_all_months
                 calculate_all_months(verbose=False)
                 st.success("Revenue aggregation executed successfully!")
         with b2:
             if st.button("Trigger ML Anomaly Detection", use_container_width=True):
-                from backend.app.services.anomaly import detect_all_anomalies
+                from app.services.anomaly import detect_all_anomalies
                 detect_all_anomalies(verbose=False)
                 st.success("IsolationForest ML models evaluated!")
         with b3:
             if st.button("Reload Knowledge Base Index", use_container_width=True):
-                from backend.app.rag.retriever import get_retriever
+                from app.rag.retriever import get_retriever
                 get_retriever()
                 st.success("RAG knowledge chunks synced!")
 

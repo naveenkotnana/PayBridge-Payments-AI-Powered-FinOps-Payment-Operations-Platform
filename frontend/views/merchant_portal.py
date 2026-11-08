@@ -10,13 +10,13 @@ from html import escape
 import pandas as pd
 import streamlit as st
 
-from backend.app.db.base import SessionLocal
-from backend.app.models.payments import (
+from app.db.base import SessionLocal
+from app.models.payments import (
     Merchant,
     PaymentTransaction, PaymentOrder, CafeOrderItems,
 )
 from frontend.styles import render_html
-from backend.app.models.ops import AuditLog
+from app.models.ops import AuditLog
 
 
 def render_merchant_portal(merchant_id: str = "mid_rameshwaram_01", page: str = "Overview"):

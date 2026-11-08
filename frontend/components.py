@@ -43,13 +43,13 @@ def api_call(method: str, path: str, **kw):
     except Exception:
         # Fallback to in-process database execution for standalone Streamlit Cloud deployment
         try:
-            from backend.app.db.base import SessionLocal
-            from backend.app.models import (
+            from app.db.base import SessionLocal
+            from app.models import (
                 User, Alert, IngestionRun, ValidationResult, AuditLog, ActionRecord, Anomaly, Workflow
             )
-            from backend.app.core.security import verify_password, create_access_token
-            from backend.app.agent.tools.sql_tool import run_named_query
-            from backend.app.analytics.queries import QUERIES
+            from app.core.security import verify_password, create_access_token
+            from app.agent.tools.sql_tool import run_named_query
+            from app.analytics.queries import QUERIES
             from urllib.parse import parse_qs, urlparse
 
             db = SessionLocal()
@@ -212,7 +212,7 @@ def api_call(method: str, path: str, **kw):
 
                 # 12. Fallback for /investigate
                 if (path == "/investigate" or "/investigate" in path) and method.upper() == "POST":
-                    from backend.app.agent.graph import run_agent_workflow
+                    from app.agent.graph import run_agent_workflow
                     body = kw.get("json", {})
                     query = body.get("question") or body.get("query", "")
                     res = run_agent_workflow(query=query, role=st.session_state.get("role", "MANAGER"))

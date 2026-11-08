@@ -131,9 +131,9 @@ def render_data_quality(role: str):
         )
 
     if uploaded_files:
-        from backend.app.services.ingestion import infer_dataset_name, ingest_dataframe, TABLE_ORDER
-        from backend.app.services.revenue import calculate_all_months
-        from backend.app.db.base import SessionLocal
+        from app.services.ingestion import infer_dataset_name, ingest_dataframe, TABLE_ORDER
+        from app.services.revenue import calculate_all_months
+        from app.db.base import SessionLocal
 
         st.markdown(f"**Selected {len(uploaded_files)} file(s):**")
         file_entries = []

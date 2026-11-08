@@ -19,10 +19,10 @@ Features:
 from decimal import Decimal
 import streamlit as st
 
-from backend.app.db.base import SessionLocal
-from backend.app.models.payments import PaymentTransaction
+from app.db.base import SessionLocal
+from app.models.payments import PaymentTransaction
 from frontend.styles import render_html
-from backend.app.services.payment_support import lookup_payment
+from app.services.payment_support import lookup_payment
 
 
 def render_ai_investigation(role: str = "ADMIN"):

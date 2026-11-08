@@ -17,17 +17,17 @@ import streamlit as st
 import streamlit.components.v1 as components
 from fastapi import HTTPException
 
-from backend.app.api.checkout import (
+from app.api.checkout import (
     create_razorpay_order,
     verify_razorpay_payment,
     CreateOrderRequest,
     VerifyPaymentRequest,
 )
-from backend.app.core.config import settings
-from backend.app.services.demo_wallet import get_wallet, pay_order
-from backend.app.db.base import SessionLocal
-from backend.app.models.payments import Customer, PaymentTransaction, CafeOrderItems
-from backend.app.services.cafe_menu import MENU, DEFAULT_CART, SNACK_CART, price_cart
+from app.core.config import settings
+from app.services.demo_wallet import get_wallet, pay_order
+from app.db.base import SessionLocal
+from app.models.payments import Customer, PaymentTransaction, CafeOrderItems
+from app.services.cafe_menu import MENU, DEFAULT_CART, SNACK_CART, price_cart
 from frontend.styles import render_html
 
 EMPTY_CART = {item_id: 0 for item_id in MENU}

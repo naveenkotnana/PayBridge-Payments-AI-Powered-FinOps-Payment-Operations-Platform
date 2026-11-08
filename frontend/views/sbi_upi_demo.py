@@ -11,11 +11,11 @@ Demonstrates the full fintech lifecycle:
 """
 import streamlit as st
 import datetime as dt
-from backend.app.db.base import SessionLocal
-from backend.app.models.payments import (
+from app.db.base import SessionLocal
+from app.models.payments import (
     PaymentTransaction,
 )
-from backend.app.models.ops import AuditLog
+from app.models.ops import AuditLog
 
 
 def render_sbi_upi_demo(role: str = "ADMIN"):
