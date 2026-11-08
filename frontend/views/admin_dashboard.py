@@ -389,8 +389,10 @@ def _render_admin_data_pipeline(db):
             st.caption("Duplicates are included in the rejected count. Accepted records are saved immediately; review rejected rows before retrying.")
             from pathlib import Path
             report = result.get("rejected_file_generated")
-            if report and Path(report).is_file():
-                st.download_button("Download rejected rows", Path(report).read_bytes(), file_name="rejected_payment_rows.csv", mime="text/csv", key="payment_csv_rejections")
+            from backend.app.services.ingestion_payments import PaymentCSVIngestionService
+            report_path = PaymentCSVIngestionService(db).rejected_dir / Path(report).name if report else None
+            if report_path and report_path.is_file():
+                st.download_button("Download rejected rows", report_path.read_bytes(), file_name="rejected_payment_rows.csv", mime="text/csv", key="payment_csv_rejections")
             with st.expander("Imported records and detected columns"):
                 st.json(result["detected_mapping"])
                 st.dataframe(db.execute(text("SELECT payment_id, merchant_id, amount, currency, method, bank, status FROM payment_transactions WHERE augmentation_method = :lineage LIMIT 100"), {"lineage": "CSV_LINEAGE_" + result["run_id"]}).mappings().all(), use_container_width=True)

@@ -92,6 +92,31 @@ class PaymentOrder(Base):
     created_at = Column(DateTime, server_default=func.now(), index=True)
 
 
+class CheckoutRequest(Base):
+    """Durable idempotency reservation for Razorpay order creation."""
+    __tablename__ = "checkout_requests"
+
+    idempotency_key = Column(String(100), primary_key=True)
+    customer_id = Column(String(40), ForeignKey("customers.customer_id"), nullable=False, index=True)
+    merchant_id = Column(String(30), ForeignKey("merchants.merchant_id"), nullable=False, index=True)
+    request_fingerprint = Column(String(64), nullable=False)
+    items_json = Column(Text, nullable=False)
+    amount_minor = Column(Integer, nullable=False)
+    currency = Column(String(3), nullable=False)
+    receipt = Column(String(60), nullable=False)
+    state = Column(String(20), nullable=False, default="PROCESSING", index=True)
+    provider_order_id = Column(String(40), unique=True, nullable=True, index=True)
+    provider_key_id = Column(String(40), nullable=True)
+    last_error_code = Column(String(40), nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False, index=True)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+    __table_args__ = (
+        CheckConstraint("amount_minor >= 100", name="ck_checkout_amount_minimum"),
+        CheckConstraint("currency = 'INR'", name="ck_checkout_currency_inr"),
+        CheckConstraint("state IN ('PROCESSING', 'UNCERTAIN', 'CREATED')", name="ck_checkout_state"),
+    )
+
+
 class PaymentTransaction(Base):
     __tablename__ = "payment_transactions"
 

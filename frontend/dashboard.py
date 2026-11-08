@@ -32,6 +32,17 @@ import frontend as _frontend_mod
 sys.modules["dashboard"] = _frontend_mod
 
 import streamlit as st
+from backend.app.core.config import settings
+
+# The current Streamlit pages read SQLAlchemy sessions directly and use
+# demo-only role switching. Refuse to expose those paths in production until
+# the UI has been migrated to authenticated FastAPI calls.
+if not settings.DEMO_MODE:
+    st.error(
+        "The Streamlit interface is available only in explicit demo mode. "
+        "Production workflows must use authenticated FastAPI endpoints."
+    )
+    st.stop()
 
 # Auto-initialize database schema, demo users, and synthetic data
 try:

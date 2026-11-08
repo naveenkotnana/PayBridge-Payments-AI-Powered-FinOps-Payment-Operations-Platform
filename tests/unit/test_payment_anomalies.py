@@ -65,6 +65,16 @@ def test_payment_anomaly_detection_with_failures():
         assert alert.severity in ("HIGH", "CRITICAL")
         assert alert.status == "OPEN"
 
+        # Re-running detection retains the historical alert and updates its
+        # occurrence count instead of deleting/recreating the event.
+        anomaly_count = db.query(Anomaly).count()
+        alert_count = db.query(Alert).count()
+        detect(db)
+        assert db.query(Anomaly).count() == anomaly_count
+        assert db.query(Alert).count() == alert_count
+        assert db.query(Anomaly).filter_by(fingerprint=anom.fingerprint).one().occurrence_count == 2
+        assert db.query(Alert).filter_by(fingerprint=alert.fingerprint).one().occurrence_count == 2
+
     finally:
         db.close()
 

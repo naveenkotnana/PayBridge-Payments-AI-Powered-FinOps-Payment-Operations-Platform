@@ -150,6 +150,10 @@ class Anomaly(Base):
     reason = Column(Text)
     observed_value = Column(Numeric(16, 2), nullable=True)
     expected_value = Column(Numeric(16, 2), nullable=True)
+    fingerprint = Column(String(64), unique=True, index=True, nullable=True)
+    first_seen_at = Column(DateTime, nullable=True)
+    last_seen_at = Column(DateTime, nullable=True)
+    occurrence_count = Column(Integer, nullable=False, default=1, server_default="1")
     created_at = Column(DateTime, server_default=func.now())
 
 
@@ -166,3 +170,7 @@ class Alert(Base):
     anomaly_score = Column(Numeric(8, 4), nullable=True)
     evidence_summary = Column(Text)
     status = Column(String(20), index=True, default="OPEN")
+    fingerprint = Column(String(64), unique=True, index=True, nullable=True)
+    first_seen_at = Column(DateTime, nullable=True)
+    last_seen_at = Column(DateTime, nullable=True)
+    occurrence_count = Column(Integer, nullable=False, default=1, server_default="1")

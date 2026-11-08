@@ -37,6 +37,7 @@ from app.models.payments import (
 
 log = logging.getLogger("opspilot.ingestion_payments")
 TWO_PLACES = Decimal("0.01")
+MAX_CSV_BYTES = 25 * 1024 * 1024
 
 
 def _dec(val: Any) -> Decimal:
@@ -104,6 +105,9 @@ BANK_NORMALIZATION = {
     "kotak": "KOTAK", "kotak mahindra": "KOTAK", "kotak bank": "KOTAK",
 }
 
+ALLOWED_GATEWAYS = {"RAZORPAY_DIRECT", "RAZORPAY", "HDFC_PG", "PAYU",
+                   "CASHFREE", "PHONEPE", "STRIPE"}
+
 
 def detect_column_mapping(headers: List[str]) -> Dict[str, str]:
     """Map arbitrary CSV header names to canonical schema keys."""
@@ -120,9 +124,9 @@ def detect_column_mapping(headers: List[str]) -> Dict[str, str]:
 
 
 def parse_timestamp(val: Any) -> dt.datetime:
-    """Parse multiple common datetime formats into naive UTC dt."""
+    """Parse common formats into naive UTC; missing event time is invalid."""
     if not val:
-        return dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
+        raise ValueError("Missing timestamp; source time is required.")
     s = str(val).strip()
     for fmt in [
         "%Y-%m-%d %H:%M:%S",
@@ -139,7 +143,10 @@ def parse_timestamp(val: Any) -> dt.datetime:
         except ValueError:
             pass
     try:
-        return dt.datetime.fromisoformat(s.replace("Z", "+00:00")).replace(tzinfo=None)
+        parsed = dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
+        if parsed.tzinfo is not None:
+            parsed = parsed.astimezone(dt.timezone.utc).replace(tzinfo=None)
+        return parsed
     except Exception:
         raise ValueError(f"Unrecognized datetime format: '{val}'")
 
@@ -180,15 +187,21 @@ class PaymentCSVIngestionService:
         f: TextIO
         archived_raw_path = self.archive_dir / f"{run_id}_{Path(source_name).name}"
         if isinstance(file_path_or_buffer, (str, Path)) and Path(file_path_or_buffer).exists():
+            if Path(file_path_or_buffer).stat().st_size > MAX_CSV_BYTES:
+                raise ValueError("CSV exceeds the 25 MB ingestion service limit")
             shutil.copyfile(str(file_path_or_buffer), str(archived_raw_path))
             f = open(file_path_or_buffer, mode="r", encoding="utf-8", errors="replace")
             should_close = True
         elif hasattr(file_path_or_buffer, "read"):
             content = file_path_or_buffer.read()
             if isinstance(content, str):
+                if len(content.encode("utf-8")) > MAX_CSV_BYTES:
+                    raise ValueError("CSV exceeds the 25 MB ingestion service limit")
                 archived_raw_path.write_text(content, encoding="utf-8")
                 f = io.StringIO(content)
             else:
+                if len(content) > MAX_CSV_BYTES:
+                    raise ValueError("CSV exceeds the 25 MB ingestion service limit")
                 archived_raw_path.write_bytes(content)
                 f = io.StringIO(content.decode("utf-8", errors="replace"))
             should_close = False
@@ -205,15 +218,19 @@ class PaymentCSVIngestionService:
             final_mapping = {**detected_mapping, **(custom_mapping or {})}
 
             # Check critical required fields
-            required_canonical = ["payment_id", "amount"]
+            required_canonical = ["payment_id", "amount", "currency", "method",
+                                  "status", "bank", "gateway", "timestamp",
+                                  "merchant_id", "order_id"]
             missing_req = [req for req in required_canonical if req not in final_mapping]
             if missing_req:
                 raise ValueError(f"Cannot map critical required columns: {missing_req} from headers: {reader.fieldnames}")
 
-            # Pre-load existing IDs in memory for high-performance O(1) duplicate & foreign-key lookups
-            existing_tx_ids = set(r[0] for r in self.db.query(PaymentTransaction.payment_id).all())
-            existing_cust_ids = set(r[0] for r in self.db.query(Customer.customer_id).all())
-            existing_order_ids = set(r[0] for r in self.db.query(PaymentOrder.order_id).all())
+            # Keep only IDs encountered in this batch in memory. Existing
+            # payment identity is checked through the indexed primary key; the
+            # database unique constraint remains authoritative under races.
+            batch_payment_ids = set()
+            customer_merchants = dict(self.db.query(Customer.customer_id, Customer.merchant_id).all())
+            new_order_facts: Dict[str, tuple[str, Optional[str], Decimal, str]] = {}
 
             rows_received = 0
             rows_accepted = 0
@@ -223,11 +240,7 @@ class PaymentCSVIngestionService:
             rejected_rows = []
             db_txns = []
 
-            # Ensure baseline default merchant exists
-            default_merchant = self.db.query(Merchant).filter(Merchant.merchant_id == "mid_rameshwaram_01").first()
-            if not default_merchant:
-                default_merchant = self.db.query(Merchant).first()
-            default_mid = default_merchant.merchant_id if default_merchant else "mid_rameshwaram_01"
+            known_merchants = {r[0] for r in self.db.query(Merchant.merchant_id).all()}
 
             for row_idx, row in enumerate(reader, start=2):
                 rows_received += 1
@@ -241,31 +254,34 @@ class PaymentCSVIngestionService:
                     rejection_reason = "Missing payment_id"
 
                 # 2. Duplicate detection (O(1) in-memory lookup)
-                elif raw_payment_id in existing_tx_ids:
+                elif raw_payment_id in batch_payment_ids or self.db.query(PaymentTransaction.payment_id).filter_by(payment_id=raw_payment_id).first():
                     rows_duplicated += 1
                     rejection_reason = f"Duplicate payment_id: {raw_payment_id}"
 
                 # 3. Amount validation
                 else:
                     try:
-                        amt_dec = _dec(raw_amount)
+                        parsed_amount = Decimal(raw_amount)
+                        if parsed_amount != parsed_amount.quantize(TWO_PLACES):
+                            rejection_reason = f"Amount has more than two decimal places: '{raw_amount}'"
+                        amt_dec = _dec(parsed_amount)
                         if amt_dec <= Decimal("0.00"):
                             rejection_reason = f"Non-positive financial amount: '{raw_amount}'"
                     except (InvalidOperation, ValueError):
                         rejection_reason = f"Malformed financial amount: '{raw_amount}'"
 
                 # 4. Currency validation
-                currency = "INR"
-                if not rejection_reason and "currency" in final_mapping:
-                    raw_curr = row.get(final_mapping["currency"], "INR").strip().upper()
-                    if raw_curr and raw_curr != "INR":
+                currency = ""
+                if not rejection_reason:
+                    raw_curr = row.get(final_mapping["currency"], "").strip().upper()
+                    if raw_curr != "INR":
                         rejection_reason = f"Unsupported currency '{raw_curr}'. Only 'INR' accepted."
                     else:
-                        currency = raw_curr or "INR"
+                        currency = raw_curr
 
                 # 5. Timestamp validation
-                tx_time = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
-                if not rejection_reason and "timestamp" in final_mapping:
+                tx_time = None
+                if not rejection_reason:
                     raw_ts = row.get(final_mapping["timestamp"], "")
                     try:
                         tx_time = parse_timestamp(raw_ts)
@@ -274,7 +290,8 @@ class PaymentCSVIngestionService:
 
                 # Record rejection if any check failed
                 if rejection_reason:
-                    rows_rejected += 1
+                    if not rejection_reason.startswith("Duplicate payment_id:"):
+                        rows_rejected += 1
                     rej_record = PaymentIngestionRecord(
                         run_id=run_id,
                         row_number=row_idx,
@@ -284,21 +301,48 @@ class PaymentCSVIngestionService:
                     self.db.add(rej_record)
                     rejected_rows.append({**row, "_row_number": row_idx, "_rejection_reason": rejection_reason})
                     continue
+                if tx_time is None:
+                    raise ValueError("Timestamp validation did not produce a source timestamp")
 
                 # Normalization
-                raw_method = row.get(final_mapping.get("method", ""), "UPI").strip().lower()
-                norm_method = METHOD_NORMALIZATION.get(raw_method, "UPI")
+                raw_method = row.get(final_mapping["method"], "").strip().lower()
+                norm_method = METHOD_NORMALIZATION.get(raw_method)
 
-                raw_status = row.get(final_mapping.get("status", ""), "CAPTURED").strip().lower()
-                norm_status = STATUS_NORMALIZATION.get(raw_status, "CAPTURED")
+                raw_status = row.get(final_mapping["status"], "").strip().lower()
+                norm_status = STATUS_NORMALIZATION.get(raw_status)
 
-                raw_bank = row.get(final_mapping.get("bank", ""), "HDFC").strip().lower()
-                norm_bank = BANK_NORMALIZATION.get(raw_bank, "HDFC")
+                raw_bank = row.get(final_mapping["bank"], "").strip().lower()
+                norm_bank = BANK_NORMALIZATION.get(raw_bank)
 
-                merchant_id = row.get(final_mapping.get("merchant_id", ""), default_mid).strip() or default_mid
+                merchant_id = row.get(final_mapping["merchant_id"], "").strip()
                 customer_id = row.get(final_mapping.get("customer_id", ""), "").strip() or None
-                gateway = row.get(final_mapping.get("gateway", ""), "RAZORPAY_DIRECT").strip() or "RAZORPAY_DIRECT"
-                order_id = row.get(final_mapping.get("order_id", ""), f"order_{uuid.uuid4().hex[:12]}").strip()
+                gateway = row.get(final_mapping["gateway"], "").strip().upper()
+                order_id = row.get(final_mapping["order_id"], "").strip()
+
+                if not norm_method or not norm_status or not norm_bank or gateway not in ALLOWED_GATEWAYS:
+                    reason = ("Unknown or missing payment method" if not norm_method else
+                              "Unknown or missing payment status" if not norm_status else
+                              "Unknown or missing bank" if not norm_bank else
+                              f"Unknown or missing gateway: {gateway or '(blank)'}")
+                    rows_rejected += 1
+                    self.db.add(PaymentIngestionRecord(run_id=run_id, row_number=row_idx,
+                        raw_data=json.dumps(row), rejection_reason=reason))
+                    rejected_rows.append({**row, "_row_number": row_idx, "_rejection_reason": reason})
+                    continue
+                if merchant_id not in known_merchants:
+                    reason = f"Unknown merchant_id: {merchant_id or '(blank)'}"
+                    rows_rejected += 1
+                    self.db.add(PaymentIngestionRecord(run_id=run_id, row_number=row_idx,
+                        raw_data=json.dumps(row), rejection_reason=reason))
+                    rejected_rows.append({**row, "_row_number": row_idx, "_rejection_reason": reason})
+                    continue
+                if customer_id and customer_id not in customer_merchants:
+                    reason = f"Unknown customer_id: {customer_id}"
+                    rows_rejected += 1
+                    self.db.add(PaymentIngestionRecord(run_id=run_id, row_number=row_idx,
+                        raw_data=json.dumps(row), rejection_reason=reason))
+                    rejected_rows.append({**row, "_row_number": row_idx, "_rejection_reason": reason})
+                    continue
 
                 # Deterministic fee & tax calculation
                 fee_rate = Decimal("0.0035") if norm_method == "UPI" else (Decimal("0.0185") if norm_method == "CARD" else Decimal("0.0150"))
@@ -307,21 +351,28 @@ class PaymentCSVIngestionService:
                 net_amount = _dec(amt_dec - fee - tax)
 
                 # Ensure customer exists if customer_id provided
-                if customer_id and customer_id not in existing_cust_ids:
-                    cust = Customer(
-                        customer_id=customer_id,
-                        merchant_id=merchant_id,
-                        name=row.get("customer_name", f"Customer {customer_id}"),
-                        email=row.get("email", f"{customer_id.lower()}@example.com"),
-                        contact="+919800000000",
-                        is_synthetic=True,
-                        data_source="CSV_IMPORT",
-                    )
-                    self.db.add(cust)
-                    existing_cust_ids.add(customer_id)
-
-                # Ensure order exists
-                if order_id not in existing_order_ids:
+                # Validate order identity before adding the ledger row. A
+                # single order cannot silently span merchants/customers/amounts.
+                order_facts = (merchant_id, customer_id, amt_dec, currency)
+                existing_order = self.db.query(PaymentOrder).filter_by(order_id=order_id).first()
+                if existing_order:
+                    stored_facts = (existing_order.merchant_id, existing_order.customer_id,
+                                    Decimal(str(existing_order.amount)), existing_order.currency)
+                    if stored_facts != order_facts:
+                        reason = f"Order consistency check failed for order_id: {order_id}"
+                        rows_rejected += 1
+                        self.db.add(PaymentIngestionRecord(run_id=run_id, row_number=row_idx,
+                            raw_data=json.dumps(row), rejection_reason=reason))
+                        rejected_rows.append({**row, "_row_number": row_idx, "_rejection_reason": reason})
+                        continue
+                elif order_id in new_order_facts and new_order_facts[order_id] != order_facts:
+                    reason = f"Order consistency check failed for order_id: {order_id}"
+                    rows_rejected += 1
+                    self.db.add(PaymentIngestionRecord(run_id=run_id, row_number=row_idx,
+                        raw_data=json.dumps(row), rejection_reason=reason))
+                    rejected_rows.append({**row, "_row_number": row_idx, "_rejection_reason": reason})
+                    continue
+                elif order_id not in new_order_facts:
                     ord_obj = PaymentOrder(
                         order_id=order_id,
                         merchant_id=merchant_id,
@@ -335,7 +386,7 @@ class PaymentCSVIngestionService:
                         created_at=tx_time - dt.timedelta(seconds=15),
                     )
                     self.db.add(ord_obj)
-                    existing_order_ids.add(order_id)
+                    new_order_facts[order_id] = order_facts
 
                 # Build Transaction Model
                 tx = PaymentTransaction(
@@ -360,19 +411,19 @@ class PaymentCSVIngestionService:
                     captured_at=tx_time if norm_status == "CAPTURED" else None,
                 )
                 db_txns.append(tx)
-                existing_tx_ids.add(raw_payment_id)
+                batch_payment_ids.add(raw_payment_id)
                 rows_accepted += 1
 
                 # Flush periodically in performant chunks
                 if len(db_txns) >= 1000:
+                    self.db.flush()
                     self.db.bulk_save_objects(db_txns)
-                    self.db.commit()
                     db_txns = []
 
             # Save remaining transactions
             if db_txns:
+                self.db.flush()
                 self.db.bulk_save_objects(db_txns)
-                self.db.commit()
 
             # Write rejected records report
             rejected_file_path = None
@@ -393,6 +444,7 @@ class PaymentCSVIngestionService:
             run_record.rejected_file_path = str(rejected_file_path) if rejected_file_path else None
             run_record.status = "COMPLETED"
             run_record.completed_at = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
+            self.db.flush()
             self.db.commit()
 
             return {
@@ -403,8 +455,8 @@ class PaymentCSVIngestionService:
                 "records_accepted": rows_accepted,
                 "records_rejected": rows_rejected,
                 "records_duplicated": rows_duplicated,
-                "raw_file_archived": str(archived_raw_path),
-                "rejected_file_generated": str(rejected_file_path) if rejected_file_path else None,
+                "raw_file_archived": archived_raw_path.name,
+                "rejected_file_generated": rejected_file_path.name if rejected_file_path else None,
                 "detected_mapping": final_mapping,
             }
 

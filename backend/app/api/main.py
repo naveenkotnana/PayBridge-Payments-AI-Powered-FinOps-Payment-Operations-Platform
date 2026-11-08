@@ -8,21 +8,23 @@ from pathlib import Path
 import time
 from typing import List, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Query, status, UploadFile, File
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from app.agent.tools.action_tool import create_incident
 from app.agent.workflow import resume_after_approval, run_investigation
 from app.analytics.queries import QUERIES
-from app.core.config import settings
+from app.core.config import settings, validate_runtime_configuration
 from app.core.logging_config import setup_logging
+from app.core.login_rate_limit import (check_login_allowed, clear_login_failures,
+                                       identity_digest, record_login_failure)
 from app.core.security import (create_access_token, get_current_user, require,
-                               seed_demo_users, verify_password)
-from app.db.base import SessionLocal, get_db, init_db
+                               assert_demo_users_absent, seed_demo_users, verify_password)
+from app.db.base import SessionLocal, engine, get_db, init_db
 from app.models import (ActionRecord, Alert, Approval, AuditLog,
                         EvaluationResult, User, Workflow)
 from app.rag import ollama_client
@@ -37,17 +39,33 @@ from app.analytics.payment_analytics import PaymentAnalyticsEngine
 from app.api.checkout import router as checkout_router
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+ALEMBIC_HEAD = "8e6f27fd41bb"
 setup_logging()
+
+
+def _assert_production_schema_current() -> None:
+    inspector = inspect(engine)
+    if not inspector.has_table("alembic_version"):
+        raise RuntimeError("Production database is not migrated. Run `alembic upgrade head` before startup.")
+    with engine.connect() as connection:
+        revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
+    if revision != ALEMBIC_HEAD:
+        raise RuntimeError("Production database migration is not at the application head; run `alembic upgrade head`.")
 
 
 @asynccontextmanager
 async def _lifespan(application):
-    if not settings.DEMO_MODE and settings.JWT_SECRET in {"dev-only-change-me", "", "change-me-in-your-local-env"}:
-        raise RuntimeError("Set a unique JWT_SECRET outside demo mode.")
-    init_db()
+    validate_runtime_configuration()
+    if settings.DEMO_MODE:
+        init_db()
+    else:
+        _assert_production_schema_current()
     db = SessionLocal()
     try:
-        seed_demo_users(db)
+        if settings.DEMO_MODE:
+            seed_demo_users(db)
+        else:
+            assert_demo_users_absent(db)
     finally:
         db.close()
     yield   # application runs here
@@ -60,8 +78,13 @@ app = FastAPI(
     description="AI Operations Workflow Automation & Intelligence Platform. "
                 "SYNTHETIC DATA ONLY. All LLM inference runs locally via Ollama. "
                 "No paid LLM APIs are used.")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
-                   allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=list(settings.ALLOWED_ORIGINS),
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
+    allow_credentials=True,
+)
 app.include_router(checkout_router)
 
 _METRICS = {"requests": 0, "errors": 0, "latency_ms_total": 0}
@@ -137,10 +160,15 @@ def health(db: Session = Depends(get_db)):
 
 # ------------------------------------------------------------------- auth
 @app.post("/auth/login", response_model=Token, tags=["auth"])
-def login(body: LoginRequest, db: Session = Depends(get_db)):
+def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
+    client_host = request.client.host if request.client else "unknown"
+    rate_key = identity_digest(client_host, body.username)
+    check_login_allowed(db, rate_key)
     user = db.query(User).filter(User.username == body.username).first()
     if not user or not user.is_active or not verify_password(body.password, user.password_hash):
+        record_login_failure(db, rate_key)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
+    clear_login_failures(db, rate_key)
     return Token(access_token=create_access_token(user), role=user.role,
                  user_id=user.user_id)
 
@@ -392,6 +420,8 @@ def simulation_availability(db: Session = Depends(get_db), user=Depends(require(
 @app.get("/api/v1/simulation/scenarios", tags=["simulation"])
 def simulation_scenarios():
     """List available operational simulation scenarios."""
+    if not settings.ENABLE_SIMULATION_ENDPOINTS:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Simulation endpoints are disabled on this deployment.")
     return {
         "scenarios": [
             {"name": k, "description": v} for k, v in SCENARIOS.items()
@@ -402,6 +432,8 @@ def simulation_scenarios():
 @app.post("/api/v1/simulation/generate", tags=["simulation"])
 def simulation_generate(req: SimulationGenerateRequest, db: Session = Depends(get_db), user=Depends(require("configure"))):
     """Generate synthetic payments, lifecycle events, and settlements under a scenario."""
+    if not settings.ENABLE_SIMULATION_ENDPOINTS:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Simulation endpoints are disabled on this deployment.")
     gen = PaymentDataGenerator(db, seed=req.seed)
     return gen.generate_scenario(
         scenario=req.scenario,
@@ -414,6 +446,8 @@ def simulation_generate(req: SimulationGenerateRequest, db: Session = Depends(ge
 @app.post("/api/v1/simulation/augment", tags=["simulation"])
 def simulation_augment(req: SimulationAugmentRequest, db: Session = Depends(get_db), user=Depends(require("configure"))):
     """Augment dataset with targeted rare edge cases preserving temporal and financial invariants."""
+    if not settings.ENABLE_SIMULATION_ENDPOINTS:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Simulation endpoints are disabled on this deployment.")
     gen = PaymentDataGenerator(db, seed=req.seed)
     return gen.augment_dataset(
         strategy=req.strategy,
@@ -424,6 +458,8 @@ def simulation_augment(req: SimulationAugmentRequest, db: Session = Depends(get_
 @app.get("/api/v1/simulation/quality-report", tags=["simulation"])
 def simulation_quality_report(db: Session = Depends(get_db), user=Depends(require("view"))):
     """Run comprehensive mathematical and schema data quality validation."""
+    if not settings.ENABLE_SIMULATION_ENDPOINTS:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Simulation endpoints are disabled on this deployment.")
     return run_data_quality_audit(db)
 
 
@@ -445,6 +481,8 @@ def payment_dashboard(days_back: int = Query(7, ge=0, le=90), db: Session = Depe
 @app.post("/api/v1/ingestion/url", tags=["ingestion"])
 async def ingest_from_url_endpoint(req: URLIngestionRequest, db: Session = Depends(get_db), user=Depends(require("configure"))):
     """Securely fetch and ingest payment records from external URL with SSRF protection."""
+    if not settings.ENABLE_URL_INGESTION:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "URL ingestion is disabled on this deployment.")
     from app.services.url_ingestion import SecureURLIngestionService, SSRFSecurityError
     service = SecureURLIngestionService(db)
     try:
@@ -460,7 +498,10 @@ async def ingest_csv_endpoint(file: UploadFile = File(...), db: Session = Depend
     import tempfile
     from app.services.ingestion_payments import PaymentCSVIngestionService
 
-    suffix = Path(file.filename or "payments.csv").suffix or ".csv"
+    filename = Path(file.filename or "payments.csv").name
+    if Path(filename).suffix.lower() != ".csv" or file.content_type not in {"text/csv", "application/csv", "text/plain"}:
+        raise HTTPException(415, "Upload a plain CSV file with a .csv extension.")
+    suffix = ".csv"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         content = await file.read(10 * 1024 * 1024 + 1)
         if len(content) > 10 * 1024 * 1024:
@@ -472,7 +513,7 @@ async def ingest_csv_endpoint(file: UploadFile = File(...), db: Session = Depend
 
     try:
         service = PaymentCSVIngestionService(db)
-        return service.ingest_csv_file(file_path_or_buffer=tmp_path, source_name=file.filename)
+        return service.ingest_csv_file(file_path_or_buffer=tmp_path, source_name=filename)
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
@@ -493,7 +534,7 @@ def get_ingestion_runs(limit: int = Query(20, ge=1, le=100), db: Session = Depen
             "records_rejected": r.records_rejected,
             "records_duplicated": r.records_duplicated,
             "status": r.status,
-            "rejected_file_path": r.rejected_file_path,
+            "rejected_file": Path(r.rejected_file_path).name if r.rejected_file_path else None,
             "started_at": r.started_at.isoformat() if r.started_at else None,
             "completed_at": r.completed_at.isoformat() if r.completed_at else None
         }

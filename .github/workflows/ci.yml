@@ -4,6 +4,23 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      DEMO_MODE: "true"
+      JWT_SECRET: "ci-only-not-for-deployment-secret-value"
+      DATABASE_URL: postgresql+psycopg2://paybridge_ci:ci-only-not-a-secret@localhost:5432/paybridge_ci
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: paybridge_ci
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: paybridge_ci
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U paybridge_ci -d paybridge_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,7 +40,11 @@ jobs:
         run: mypy backend/app/models backend/app/core backend/app/schemas backend/app/services --ignore-missing-imports
 
       - name: Bootstrap data & schema
-        run: python backend/scripts/setup_all.py
+        run: |
+          cd backend
+          alembic upgrade head
+          cd ..
+          python backend/scripts/setup_all.py
 
       - name: Verify database migration head
         run: |

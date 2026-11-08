@@ -17,7 +17,7 @@ Required detection areas:
 7. Abnormal payment processing patterns.
 """
 import datetime as dt
-import uuid
+import hashlib
 from typing import List
 
 import numpy as np
@@ -120,17 +120,14 @@ def detect(db: Session, contamination: float = 0.08, seed: int = 42) -> dict:
         df["iso_flag"] = 1
         df["anomaly_score"] = 0.1
 
-    # Clear prior anomalies and alerts to present clean state
-    db.execute(text("DELETE FROM anomalies"))
-    db.execute(text("DELETE FROM alerts"))
-
     found = []
     for r in df.itertuples():
         reasons: List[str] = []
         rule_sev = "INFO"
         metric_name = "payment_success_rate"
         observed_val = float(r.failure_rate_pct)
-        expected_val = 5.0  # standard baseline: ~5% failure rate
+        method_rates = df.loc[df["method"] == r.method, "failure_rate_pct"]
+        expected_val = float(method_rates.median()) if not method_rates.empty else 0.0
         root_cause = ""
         action = ""
 
@@ -179,41 +176,57 @@ def detect(db: Session, contamination: float = 0.08, seed: int = 42) -> dict:
         sev = rule_sev if rule_sev != "INFO" else "LOW"
 
         entity_id = f"{r.gateway}_{r.bank}_{r.method}" if r.bank != "UNKNOWN" else f"{r.gateway}_{r.method}"
-        aid = f"ANM-PAY-{entity_id}-{uuid.uuid4().hex[:4]}"
+        fingerprint = hashlib.sha256(
+            f"payment:{current_month}:{entity_id}:{metric_name}".encode()
+        ).hexdigest()
+        aid = f"ANM-{fingerprint[:35]}"
         reason_text = "; ".join(reasons)
         if root_cause:
             reason_text += f" | Hypothesis: {root_cause}. Action: {action}."
 
-        db.add(Anomaly(
-            anomaly_id=aid,
-            billing_month=current_month,
-            entity_type="PAYMENT_METHOD" if r.bank == "UNKNOWN" else "BANK",
-            entity_id=entity_id,
-            metric=metric_name,
-            method=method_flag,
-            anomaly_score=round(float(r.anomaly_score), 4),
-            severity=sev,
-            reason=reason_text,
-            observed_value=round(observed_val, 2),
-            expected_value=expected_val
-        ))
+        now = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
+        prior_anomaly = db.query(Anomaly).filter_by(fingerprint=fingerprint).first()
+        if prior_anomaly:
+            prior_anomaly.last_seen_at = now
+            prior_anomaly.occurrence_count = (prior_anomaly.occurrence_count or 1) + 1
+            prior_anomaly.severity = sev
+            prior_anomaly.reason = reason_text
+            prior_anomaly.anomaly_score = round(float(r.anomaly_score), 4)
+            prior_anomaly.observed_value = round(observed_val, 2)
+            prior_anomaly.expected_value = round(expected_val, 2)
+        else:
+            db.add(Anomaly(
+                anomaly_id=aid, billing_month=current_month,
+                entity_type="PAYMENT_METHOD" if r.bank == "UNKNOWN" else "BANK",
+                entity_id=entity_id, metric=metric_name, method=method_flag,
+                anomaly_score=round(float(r.anomaly_score), 4), severity=sev,
+                reason=reason_text, observed_value=round(observed_val, 2),
+                expected_value=round(expected_val, 2), fingerprint=fingerprint,
+                first_seen_at=now, last_seen_at=now, occurrence_count=1,
+            ))
 
         # Alerts generated for MEDIUM, HIGH, CRITICAL
         if sev in ("MEDIUM", "HIGH", "CRITICAL"):
-            alert_id = f"ALT-PAY-{entity_id}-{uuid.uuid4().hex[:4]}"
-            db.add(Alert(
-                alert_id=alert_id,
-                metric=metric_name,
-                entity=entity_id,
-                billing_month=current_month,
-                severity=sev,
-                observed_value=round(observed_val, 2),
-                expected_value=expected_val,
-                anomaly_score=round(float(r.anomaly_score), 4),
-                evidence_summary=reason_text,
-                status="OPEN",
-                detected_at=dt.datetime.now()
-            ))
+            alert_fingerprint = fingerprint
+            alert_id = f"ALT-{fingerprint[:35]}"
+            prior_alert = db.query(Alert).filter_by(fingerprint=alert_fingerprint).first()
+            if prior_alert:
+                prior_alert.last_seen_at = now
+                prior_alert.occurrence_count = (prior_alert.occurrence_count or 1) + 1
+                prior_alert.severity = sev
+                prior_alert.observed_value = round(observed_val, 2)
+                prior_alert.expected_value = round(expected_val, 2)
+                prior_alert.anomaly_score = round(float(r.anomaly_score), 4)
+                prior_alert.evidence_summary = reason_text
+            else:
+                db.add(Alert(
+                    alert_id=alert_id, metric=metric_name, entity=entity_id,
+                    billing_month=current_month, severity=sev,
+                    observed_value=round(observed_val, 2), expected_value=round(expected_val, 2),
+                    anomaly_score=round(float(r.anomaly_score), 4), evidence_summary=reason_text,
+                    status="OPEN", detected_at=now, fingerprint=alert_fingerprint,
+                    first_seen_at=now, last_seen_at=now, occurrence_count=1,
+                ))
 
         found.append((aid, sev))
 
@@ -258,9 +271,6 @@ def _detect_legacy_anomalies(db: Session, contamination: float, seed: int) -> di
     df["iso_flag"] = model.predict(X)
     df["anomaly_score"] = -model.score_samples(X)
 
-    db.execute(text("DELETE FROM anomalies"))
-    db.execute(text("DELETE FROM alerts"))
-
     found = []
     for r in df.itertuples():
         reasons, rule_sev = [], "INFO"
@@ -280,28 +290,45 @@ def _detect_legacy_anomalies(db: Session, contamination: float, seed: int) -> di
 
         method = "RULE+ISOLATION_FOREST" if (iso and rule_sev != "INFO") else ("ISOLATION_FOREST" if iso else "RULE")
         sev = rule_sev if rule_sev != "INFO" else "LOW"
-        aid = f"ANM-{r.billing_month}-{r.location_code}-{uuid.uuid4().hex[:4]}"
-
-        db.add(Anomaly(
-            anomaly_id=aid, billing_month=r.billing_month,
-            entity_type="LOCATION", entity_id=r.location_code,
-            metric="total_revenue", method=method,
-            anomaly_score=round(float(r.anomaly_score), 4), severity=sev,
-            reason="; ".join(reasons), observed_value=round(float(r.revenue), 2),
-            expected_value=None
-        ))
+        fingerprint = hashlib.sha256(
+            f"legacy:{r.billing_month}:{r.location_code}:total_revenue".encode()
+        ).hexdigest()
+        aid = f"ANM-{fingerprint[:35]}"
+        now = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
+        prior_anomaly = db.query(Anomaly).filter_by(fingerprint=fingerprint).first()
+        if prior_anomaly:
+            prior_anomaly.last_seen_at = now
+            prior_anomaly.occurrence_count = (prior_anomaly.occurrence_count or 1) + 1
+            prior_anomaly.severity = sev
+            prior_anomaly.reason = "; ".join(reasons)
+        else:
+            db.add(Anomaly(
+                anomaly_id=aid, billing_month=r.billing_month,
+                entity_type="LOCATION", entity_id=r.location_code,
+                metric="total_revenue", method=method,
+                anomaly_score=round(float(r.anomaly_score), 4), severity=sev,
+                reason="; ".join(reasons), observed_value=round(float(r.revenue), 2),
+                expected_value=None, fingerprint=fingerprint,
+                first_seen_at=now, last_seen_at=now, occurrence_count=1,
+            ))
 
         if sev in ("MEDIUM", "HIGH", "CRITICAL"):
-            db.add(Alert(
-                alert_id=f"ALT-{r.billing_month}-{r.location_code}",
-                metric="total_revenue", entity=r.location_code,
-                billing_month=r.billing_month, severity=sev,
-                observed_value=round(float(r.revenue), 2),
-                expected_value=None,
-                anomaly_score=round(float(r.anomaly_score), 4),
-                evidence_summary="; ".join(reasons), status="OPEN",
-                detected_at=dt.datetime.now()
-            ))
+            prior_alert = db.query(Alert).filter_by(fingerprint=fingerprint).first()
+            if prior_alert:
+                prior_alert.last_seen_at = now
+                prior_alert.occurrence_count = (prior_alert.occurrence_count or 1) + 1
+                prior_alert.severity = sev
+                prior_alert.evidence_summary = "; ".join(reasons)
+            else:
+                db.add(Alert(
+                    alert_id=f"ALT-{fingerprint[:35]}", metric="total_revenue",
+                    entity=r.location_code, billing_month=r.billing_month, severity=sev,
+                    observed_value=round(float(r.revenue), 2), expected_value=None,
+                    anomaly_score=round(float(r.anomaly_score), 4),
+                    evidence_summary="; ".join(reasons), status="OPEN", detected_at=now,
+                    fingerprint=fingerprint, first_seen_at=now, last_seen_at=now,
+                    occurrence_count=1,
+                ))
         found.append((aid, sev))
 
     db.commit()

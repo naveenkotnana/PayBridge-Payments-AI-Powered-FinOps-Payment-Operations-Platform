@@ -64,9 +64,20 @@ def test_get_payment_events_endpoint():
 
 
 def test_post_csv_ingestion_endpoint():
+    from app.db.base import SessionLocal
+    from app.models.payments import Merchant
+    db = SessionLocal()
+    if not db.query(Merchant).filter_by(merchant_id="mid_rameshwaram_01").first():
+        db.add(Merchant(merchant_id="mid_rameshwaram_01", name="Rameshwaram Cafe",
+                        email="orders@example.com", status="ACTIVE"))
+        db.commit()
+    db.close()
     client = TestClient(app)
     unique_tx_id = f"pay_api_{uuid.uuid4().hex[:8]}"
-    csv_content = f"transaction_id,amount,status,method,created_at\n{unique_tx_id},1500.0,CAPTURED,UPI,2026-11-01 10:00:00\n".encode("utf-8")
+    csv_content = (
+        "transaction_id,order_id,merchant_id,amount,currency,status,method,bank,gateway,created_at\n"
+        f"{unique_tx_id},order_{unique_tx_id},mid_rameshwaram_01,1500.0,INR,CAPTURED,UPI,HDFC,RAZORPAY_DIRECT,2026-11-01 10:00:00\n"
+    ).encode("utf-8")
     file = io.BytesIO(csv_content)
 
     response = client.post(

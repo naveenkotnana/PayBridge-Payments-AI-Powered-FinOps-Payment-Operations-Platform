@@ -18,7 +18,7 @@ from app.models import User
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 ROLE_PERMISSIONS = {
-    "CUSTOMER": {"view_own_payments", "view_own_notifications"},
+    "CUSTOMER": {"view_own_payments", "view_own_notifications", "customer_checkout"},
     "MERCHANT": {"view_merchant_analytics", "view_merchant_alerts", "view_merchant_settlements"},
     "ANALYST":  {"view", "investigate"},
     "MANAGER":  {"view", "investigate", "approve", "reject"},
@@ -118,3 +118,15 @@ def seed_demo_users(db: Session) -> int:
             n += 1
     db.commit()
     return n
+
+
+def assert_demo_users_absent(db: Session) -> None:
+    """Fail production startup if the built-in demo identities remain stored."""
+    demo_usernames = [entry[1] for entry in DEMO_USERS]
+    found = db.query(User.username).filter(User.username.in_(demo_usernames)).all()
+    if found:
+        names = ", ".join(sorted(row[0] for row in found))
+        raise RuntimeError(
+            "Production startup refused: built-in demo accounts exist in the database "
+            f"({names}). Remove or replace them through an approved migration process."
+        )

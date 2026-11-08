@@ -74,15 +74,20 @@ def test_parse_timestamp():
     dt2 = parse_timestamp("2026-05-10T14:30:00Z")
     assert dt2.year == 2026
 
+    offset = parse_timestamp("2026-05-10T12:00:00+05:30")
+    assert offset.hour == 6 and offset.minute == 30  # normalized to UTC
+    with pytest.raises(ValueError, match="Missing timestamp"):
+        parse_timestamp("")
+
 
 def test_ingest_valid_csv(mem_db):
     session, tmp_path = mem_db
     service = PaymentCSVIngestionService(session, archive_dir=tmp_path / "archive", rejected_dir=tmp_path / "rejected")
 
-    csv_data = """transaction_id,amount,currency,payment_method,status,bank,date
-pay_test_001,1500.00,INR,UPI,CAPTURED,SBI,2026-05-10 12:00:00
-pay_test_002,2400.50,INR,CARD,SUCCESS,HDFC,2026-05-10 12:05:00
-pay_test_003,300.00,INR,NETBANKING,FAILED,ICICI,2026-05-10 12:10:00
+    csv_data = """transaction_id,order_id,merchant_id,amount,currency,payment_method,status,bank,gateway,date
+pay_test_001,order_test_001,mid_swiggy_01,1500.00,INR,UPI,CAPTURED,SBI,RAZORPAY_DIRECT,2026-05-10 12:00:00
+pay_test_002,order_test_002,mid_swiggy_01,2400.50,INR,CARD,SUCCESS,HDFC,HDFC_PG,2026-05-10 12:05:00
+pay_test_003,order_test_003,mid_swiggy_01,300.00,INR,NETBANKING,FAILED,ICICI,PAYU,2026-05-10 12:10:00
 """
     buffer = io.StringIO(csv_data)
     result = service.ingest_csv_file(buffer, source_name="test_payments.csv")
@@ -116,13 +121,13 @@ def test_ingest_csv_with_rejected_rows_and_duplicates(mem_db):
     session, tmp_path = mem_db
     service = PaymentCSVIngestionService(session, archive_dir=tmp_path / "archive", rejected_dir=tmp_path / "rejected")
 
-    csv_data = """txn_id,txn_amount,currency,payment_mode,payment_status
-pay_dup_001,500.00,INR,UPI,CAPTURED
-pay_dup_001,500.00,INR,UPI,CAPTURED
-pay_invalid_amt,-200.00,INR,UPI,CAPTURED
-pay_bad_curr,1000.00,USD,UPI,CAPTURED
-,750.00,INR,UPI,CAPTURED
-pay_valid_002,1200.00,INR,CARD,PAID
+    csv_data = """txn_id,order_id,merchant_id,txn_amount,currency,payment_mode,payment_status,bank,gateway,timestamp
+pay_dup_001,order_dup_001,mid_swiggy_01,500.00,INR,UPI,CAPTURED,SBI,RAZORPAY_DIRECT,2026-05-10T12:00:00Z
+pay_dup_001,order_dup_001,mid_swiggy_01,500.00,INR,UPI,CAPTURED,SBI,RAZORPAY_DIRECT,2026-05-10T12:00:00Z
+pay_invalid_amt,order_invalid_001,mid_swiggy_01,-200.00,INR,UPI,CAPTURED,SBI,RAZORPAY_DIRECT,2026-05-10T12:00:00Z
+pay_bad_curr,order_bad_curr,mid_swiggy_01,1000.00,USD,UPI,CAPTURED,SBI,RAZORPAY_DIRECT,2026-05-10T12:00:00Z
+,order_missing_payment,mid_swiggy_01,750.00,INR,UPI,CAPTURED,SBI,RAZORPAY_DIRECT,2026-05-10T12:00:00Z
+pay_valid_002,order_valid_002,mid_swiggy_01,1200.00,INR,CARD,PAID,HDFC,HDFC_PG,2026-05-10T12:00:00Z
 """
     buffer = io.StringIO(csv_data)
     result = service.ingest_csv_file(buffer, source_name="mixed_batch.csv")
@@ -130,12 +135,13 @@ pay_valid_002,1200.00,INR,CARD,PAID
     assert result["status"] == "COMPLETED"
     assert result["records_received"] == 6
     assert result["records_accepted"] == 2  # pay_dup_001 (first occurrence) & pay_valid_002
-    assert result["records_rejected"] == 4  # 1 duplicate + 1 negative + 1 USD + 1 missing ID
+    assert result["records_rejected"] == 3  # duplicate count is tracked separately
     assert result["records_duplicated"] == 1
+    assert result["records_received"] == result["records_accepted"] + result["records_rejected"] + result["records_duplicated"]
 
     # Check rejected report file was generated
     assert result["rejected_file_generated"] is not None
-    rej_path = Path(result["rejected_file_generated"])
+    rej_path = tmp_path / "rejected" / result["rejected_file_generated"]
     assert rej_path.exists()
 
     # Verify rejected audit records in database
@@ -146,3 +152,34 @@ pay_valid_002,1200.00,INR,CARD,PAID
     assert any("Non-positive" in r for r in reasons)
     assert any("Unsupported currency" in r for r in reasons)
     assert any("Missing payment_id" in r for r in reasons)
+
+
+@pytest.mark.parametrize(("field", "value", "reason"), [
+    ("payment_mode", "mystery-pay", "method"),
+    ("payment_status", "maybe", "status"),
+    ("bank_name", "unknown-bank", "bank"),
+    ("gateway_name", "unknown-gateway", "gateway"),
+    ("timestamp", "", "timestamp"),
+])
+def test_unknown_or_missing_source_values_are_rejected(mem_db, field, value, reason):
+    session, tmp_path = mem_db
+    service = PaymentCSVIngestionService(session, archive_dir=tmp_path / "archive",
+                                         rejected_dir=tmp_path / "rejected")
+    headers = ["payment_id", "order_id", "merchant_id", "amount", "currency",
+               "method", "status", "bank", "gateway", "timestamp"]
+    row = ["pay_bad_row", "order_bad_row", "mid_swiggy_01", "100", "INR",
+           "UPI", "CAPTURED", "SBI", "RAZORPAY_DIRECT", "2026-05-10T12:00:00Z"]
+    index = {"payment_mode": 5, "payment_status": 6, "bank_name": 7,
+             "gateway_name": 8, "timestamp": 9}.get(field)
+    if index is None:
+        field = {"payment_mode": "method", "payment_status": "status",
+                 "bank_name": "bank", "gateway_name": "gateway"}.get(field, field)
+        index = headers.index(field)
+    row[index] = value
+    csv_data = ",".join(headers) + "\n" + ",".join(row) + "\n"
+    result = service.ingest_csv_file(io.StringIO(csv_data), source_name="invalid.csv")
+    assert result["records_accepted"] == 0
+    assert result["records_rejected"] == 1
+    assert result["records_received"] == result["records_accepted"] + result["records_rejected"] + result["records_duplicated"]
+    reject = session.query(PaymentIngestionRecord).one()
+    assert reason in reject.rejection_reason.lower()

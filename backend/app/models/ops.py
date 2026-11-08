@@ -15,6 +15,16 @@ class User(Base):
     is_active = Column(Boolean, default=True)
 
 
+class LoginRateLimit(Base):
+    """Shared-store failed-login window; identity is a keyed digest, not raw PII."""
+    __tablename__ = "login_rate_limits"
+    identity_digest = Column(String(64), primary_key=True)
+    window_started_at = Column(DateTime, nullable=False, index=True)
+    attempts = Column(Integer, nullable=False, default=0)
+    blocked_until = Column(DateTime, nullable=True, index=True)
+    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
+
+
 class Workflow(Base):
     __tablename__ = "workflows"
     workflow_id = Column(String(40), primary_key=True)

@@ -4,22 +4,22 @@ from app.models.core import (
     Anomaly, Alert,
 )
 from app.models.ops import (
-    User, Workflow, Approval, ActionRecord, AuditLog, EvaluationResult,
+    User, Workflow, Approval, ActionRecord, AuditLog, EvaluationResult, LoginRateLimit,
 )
 from app.models.payments import (
     Merchant, PaymentOrder, PaymentTransaction, Refund, Settlement,
     ReconciliationDiscrepancy, GatewayHealthMetric,
     PaymentEvent, PaymentAttempt, PaymentIncident, IncidentMerchant,
-    Customer, SettlementItem, Dispute, PaymentIngestionRun, PaymentIngestionRecord, DemoWallet, CafeOrderItems,
+    Customer, SettlementItem, Dispute, PaymentIngestionRun, PaymentIngestionRecord, DemoWallet, CafeOrderItems, CheckoutRequest,
 )
 
 __all__ = [
     "Building", "Apartment", "Device", "WaterUsage", "RentalPlan", "WaterPlan",
     "PlanAssignment", "MonthlyRevenue", "IngestionRun", "ValidationResult",
     "Anomaly", "Alert", "User", "Workflow", "Approval", "ActionRecord",
-    "AuditLog", "EvaluationResult", "Merchant", "PaymentOrder",
+    "AuditLog", "EvaluationResult", "LoginRateLimit", "Merchant", "PaymentOrder",
     "PaymentTransaction", "Refund", "Settlement",
     "ReconciliationDiscrepancy", "GatewayHealthMetric",
     "PaymentEvent", "PaymentAttempt", "PaymentIncident", "IncidentMerchant",
-    "Customer", "SettlementItem", "Dispute", "PaymentIngestionRun", "PaymentIngestionRecord", "DemoWallet", "CafeOrderItems",
+    "Customer", "SettlementItem", "Dispute", "PaymentIngestionRun", "PaymentIngestionRecord", "DemoWallet", "CafeOrderItems", "CheckoutRequest",
 ]

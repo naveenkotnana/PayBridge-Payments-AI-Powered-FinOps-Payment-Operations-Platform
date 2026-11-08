@@ -270,14 +270,17 @@ def render_customer_portal(customer_id: str = "cust_aarav_01", page: str = "Orde
                         st.rerun()
                     # Call backend create-order endpoint to generate authentic order_id
                     try:
-                        ord_res = create_razorpay_order(CreateOrderRequest(
-                            amount=int(cart_total * 100),
-                            currency="INR",
-                            items=st.session_state.cafe_cart,
-                            receipt="RC-" + st.session_state.wallet_payment_request[:20],
-                            merchant_id="mid_rameshwaram_01",
-                            customer_id=customer_id
-                        ), db=db)
+                        # This helper is a local synthetic-demo path only. In
+                        # production, the FastAPI route derives identity from JWT.
+                        if not settings.DEMO_MODE:
+                            raise RuntimeError("Use the authenticated checkout API in production.")
+                        ord_res = create_razorpay_order(
+                            CreateOrderRequest(items=st.session_state.cafe_cart, currency="INR"),
+                            db=db,
+                            customer_id=customer_id,
+                            merchant_id=settings.CHECKOUT_MERCHANT_ID,
+                            idempotency_key=st.session_state.wallet_payment_request,
+                        )
                         st.session_state.aarav_order_id = ord_res.order_id
                         st.session_state.aarav_checkout_key = ord_res.key_id
                         st.session_state.show_razorpay_modal = True
@@ -316,7 +319,10 @@ def render_customer_portal(customer_id: str = "cust_aarav_01", page: str = "Orde
                         try:
                             if response.get("razorpay_order_id") != st.session_state.aarav_order_id:
                                 raise HTTPException(400, "Checkout result does not match the active order")
-                            verified = verify_razorpay_payment(VerifyPaymentRequest(**response), db=db)
+                            if not settings.DEMO_MODE:
+                                raise RuntimeError("Use the authenticated checkout API in production.")
+                            verified = verify_razorpay_payment(VerifyPaymentRequest(**response),
+                                                               db=db, customer_id=customer_id, user_id=customer_id)
                             st.session_state.aarav_payment_status = "PAID"
                             st.session_state.aarav_payment_id = verified.payment_id
                             st.session_state.show_razorpay_modal = False

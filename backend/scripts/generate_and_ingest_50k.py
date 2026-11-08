@@ -32,7 +32,7 @@ for _p in [str(PROJECT_ROOT), str(BACKEND_DIR)]:
         sys.path.insert(0, _p)
 
 from app.db.base import SessionLocal, init_db
-from app.models.payments import Merchant
+from app.models.payments import Customer, Merchant
 from app.services.ingestion_payments import PaymentCSVIngestionService
 
 RAW_DATA_DIR = BACKEND_DIR / "data" / "raw"
@@ -130,7 +130,10 @@ def generate_50k_csv(csv_path: Path, total_records: int = 50000) -> Path:
                 "order_id": f"order_{idx:07d}",
                 "merchant_id": mid,
                 "merchant_name": m_name,
-                "customer_id": f"cust_ind_{cust_num:05d}",
+                # Customer IDs are merchant-scoped in the source model. Prefix
+                # with the merchant slug so one synthetic customer can never
+                # be assigned to multiple merchants by chance.
+                "customer_id": f"cust_{mid.removeprefix('mid_')}_{cust_num:05d}",
                 "amount": f"{amount:.2f}",
                 "currency": "INR",
                 "method": method,
@@ -148,7 +151,7 @@ def generate_50k_csv(csv_path: Path, total_records: int = 50000) -> Path:
 
 
 def seed_10_merchants(db):
-    """Ensure all 10 Indian merchants are seeded in the database."""
+    """Ensure merchants and their scoped synthetic customers exist."""
     count = 0
     for m in INDIAN_MERCHANTS:
         existing = db.query(Merchant).filter(Merchant.merchant_id == m["merchant_id"]).first()
@@ -169,6 +172,26 @@ def seed_10_merchants(db):
             count += 1
     db.commit()
     print(f"Seeded {count} new Indian merchants into database.")
+
+    customer_count = 0
+    for merchant in INDIAN_MERCHANTS:
+        prefix = f"cust_{merchant['merchant_id'].removeprefix('mid_')}"
+        for customer_number in range(1, 2501):
+            customer_id = f"{prefix}_{customer_number:05d}"
+            if db.get(Customer, customer_id) is None:
+                db.add(Customer(
+                    customer_id=customer_id,
+                    merchant_id=merchant["merchant_id"],
+                    name=f"Synthetic Customer {customer_number}",
+                    email=f"{customer_id}@example.invalid",
+                    is_synthetic=True,
+                    data_source="SYNTHETIC",
+                ))
+                customer_count += 1
+        # Commit by merchant to bound memory while keeping each seed batch
+        # consistent with the merchant foreign key.
+        db.commit()
+    print(f"Seeded {customer_count} new merchant-scoped synthetic customers.")
 
 
 def main():
